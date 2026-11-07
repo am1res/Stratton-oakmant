@@ -3,9 +3,10 @@
 // stand out, the score strip shows which criteria failed without opening the card.
 import { api, esc, CHANNEL, humanError } from '../common/api.js';
 import { currentPath } from '../common/app.js';
+import { exportAllCsv } from '../analytics/dashboard.js';
 import { stripHtml } from '../common/strip.js';
 
-const state = { lang: '', channel: '', onlyProblems: false, q: '', sort: 'id' };
+const state = { lang: '', channel: '', onlyProblems: false, onlyUnsure: false, q: '', sort: 'id' };
 let activeJob = null; // survives re-renders, so leaving the page doesn't lose batch progress
 let lastFailures = [];
 
@@ -30,6 +31,7 @@ export async function render(el) {
         <div class="actions">
           <div class="progress" id="progress" hidden><i style="width:0"></i></div>
           <span class="muted" id="progress-text" aria-live="polite"></span>
+          <button class="ghost" id="csv">Скачать CSV</button>
           <label class="btn ghost" tabindex="0">Загрузить транскрипт<input type="file" id="upload" accept=".json,application/json" hidden></label>
           <button id="batch">${scored.length ? 'Переоценить все' : 'Оценить все'}</button>
         </div>
@@ -40,6 +42,7 @@ export async function render(el) {
         <select id="lang" aria-label="Язык"><option value="">Все языки</option>${langs.map((l) => `<option ${l === state.lang ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
         <select id="channel" aria-label="Канал"><option value="">Чаты и звонки</option><option value="agent chat" ${state.channel === 'agent chat' ? 'selected' : ''}>Только чаты</option><option value="voice call" ${state.channel === 'voice call' ? 'selected' : ''}>Только звонки</option></select>
         <label class="check"><input type="checkbox" id="problems" ${state.onlyProblems ? 'checked' : ''}> Только требующие внимания</label>
+        <label class="check"><input type="checkbox" id="unsure" ${state.onlyUnsure ? 'checked' : ''}> ИИ не уверен</label>
         <select id="sort" aria-label="Сортировка" style="margin-left:auto">
           <option value="id" ${state.sort === 'id' ? 'selected' : ''}>По ID</option>
           <option value="score" ${state.sort === 'score' ? 'selected' : ''}>Сначала низкий балл</option>
@@ -59,7 +62,8 @@ export async function render(el) {
         (!state.lang || c.language === state.lang) &&
         (!state.channel || c.channel === state.channel) &&
         (!state.q || c.conversation_id.toLowerCase().includes(state.q.toLowerCase())) &&
-        (!state.onlyProblems || c.gross_error || c.has_open_appeal || (c.latest_score !== null && c.latest_score < 70)),
+        (!state.onlyProblems || c.gross_error || c.has_open_appeal || c.low_confidence || (c.latest_score !== null && c.latest_score < 70)) &&
+        (!state.onlyUnsure || c.low_confidence),
     );
     if (state.sort === 'score') items = [...items].sort((a, b) => (a.latest_score ?? 999) - (b.latest_score ?? 999));
     rows.innerHTML = items.length
@@ -70,13 +74,13 @@ export async function render(el) {
           <td><span class="lang">${esc(c.language)}</span><span class="chan">${esc(CHANNEL[c.channel] || c.channel)}</span></td>
           <td class="strip-cell">${c.latest_criteria ? stripHtml(c.latest_criteria) : '<span class="muted">не оценён</span>'}</td>
           <td class="num">${c.latest_score ?? '<span class="muted">—</span>'}</td>
-          <td>${[c.gross_error ? '<span class="flag">Грубая ошибка</span>' : '', c.has_open_appeal ? '<span class="flag appeal">Апелляция</span>' : ''].filter(Boolean).join('<br>')}</td>
+          <td>${[c.gross_error ? '<span class="flag">Грубая ошибка</span>' : '', c.has_open_appeal ? '<span class="flag appeal">Апелляция</span>' : '', c.low_confidence ? '<span class="flag unsure" title="Модели разошлись в ответах: стоит проверить вручную">Проверить вручную</span>' : ''].filter(Boolean).join('<br>')}</td>
         </tr>`,
           )
           .join('')
       : `<tr><td colspan="5" class="empty">Нет диалогов под эти фильтры. <button class="link" id="reset-filters">Сбросить фильтры</button></td></tr>`;
     rows.querySelector('#reset-filters')?.addEventListener('click', () => {
-      Object.assign(state, { lang: '', channel: '', onlyProblems: false, q: '' });
+      Object.assign(state, { lang: '', channel: '', onlyProblems: false, onlyUnsure: false, q: '' });
       render(el);
     });
   };
@@ -100,6 +104,14 @@ export async function render(el) {
   bind('#channel', 'channel');
   bind('#sort', 'sort');
   bind('#problems', 'onlyProblems', 'checked');
+  bind('#unsure', 'onlyUnsure', 'checked');
+  el.querySelector('#csv').onclick = async () => {
+    try {
+      await exportAllCsv();
+    } catch (err) {
+      el.querySelector('#progress-text').textContent = humanError(err);
+    }
+  };
 
   const batchBtn = el.querySelector('#batch');
   const bar = el.querySelector('#progress');

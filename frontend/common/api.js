@@ -25,6 +25,8 @@ export const api = {
   job: (id) => req('GET', `/api/jobs/${id}`),
   evaluations: (conversation_id) => req('GET', `/api/evaluations?conversation_id=${encodeURIComponent(conversation_id)}`),
   evaluation: (id) => req('GET', `/api/evaluations/${id}`),
+  evaluationsAll: () => req('GET', '/api/evaluations?lite=1'),
+  reference: () => req('GET', '/api/reference'),
   appeals: (q = '') => req('GET', `/api/appeals${q}`),
   createAppeal: (evaluation_id, criterion_id, comment) => req('POST', '/api/appeals', { evaluation_id, criterion_id, comment }),
   suggest: (id) => req('POST', `/api/appeals/${id}/suggest`),

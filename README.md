@@ -51,6 +51,9 @@ checklist (config) ──► backend/llm/prompt.js  builds the prompt FROM the c
   its rules, scale, decision steps and examples from the checklist config. Each evaluation stores the
   checklist version and the exact prompt (the **Показать промпт** button).
 - **Model is configurable.** OpenAI by default. NVIDIA NIM or a local Ollama model is one line in `.env`.
+- **Analytics page:** where operators lose points per criterion, score distribution, RU/KZ/EN and chat/call comparison,
+  gross errors, the AI's agreement with our reference labels, and score changes after a checklist edit. CSV export.
+- **Reviewer helpers:** "ИИ не уверен" flag when votes disagree (`LLM_VOTES>1`), print/PDF report per conversation.
 - **Cost:** shown per evaluation (`usage.cost_usd`); set `LLM_PRICE_IN/OUT` for your model.
 
 ## Team

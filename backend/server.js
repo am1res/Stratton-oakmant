@@ -49,6 +49,7 @@ function criteriaSummary(e) {
     answer: answers[c.id],
     points: s.criteria[c.id].points,
     effective_weight: s.criteria[c.id].effective_weight,
+    confidence: e.criteria.find((r) => r.criterion_id === c.id)?.confidence ?? 1,
   }));
 }
 
@@ -73,6 +74,7 @@ app.get('/api/conversations', wrap(async (req, res) => {
         latest_criteria: e ? criteriaSummary(e) : null,
         gross_error: s ? s.gross_error : null,
         has_open_appeal: appeals.some((a) => a.conversation_id === c.conversation_id && a.status === 'open'),
+        low_confidence: e ? e.criteria.some((r) => !e.final?.overrides?.[r.criterion_id] && r.confidence !== undefined && r.confidence < 1) : false,
       };
     }),
   );
@@ -178,6 +180,7 @@ app.get('/api/jobs/:id', wrap(async (req, res) => {
 app.get('/api/evaluations', wrap(async (req, res) => {
   let list = await store.list('evaluations');
   if (req.query.conversation_id) list = list.filter((e) => e.conversation_id === req.query.conversation_id);
+  if (req.query.lite) list = list.map(({ prompt, ...rest }) => rest); // analytics doesn't need the prompt text
   res.json(list.sort((a, b) => b.created_at.localeCompare(a.created_at)));
 }));
 
@@ -252,6 +255,16 @@ app.post('/api/appeals/:id/decide', wrap(async (req, res) => {
   ev.final = { total: s.total, max: s.max, gross_error: s.gross_error, sections: s.sections, overrides, updated_at: new Date().toISOString() };
   await store.put('evaluations', ev.id, ev);
   res.json({ appeal, evaluation: ev });
+}));
+
+// Reference labels (our own ground truth) for the "AI accuracy" panel. Not used for grading.
+app.get('/api/reference', wrap(async (req, res) => {
+  try {
+    const gt = JSON.parse(await fs.readFile(path.join(ROOT, 'data', 'ground_truth.dev.json'), 'utf-8'));
+    res.json({ status: gt._status || 'draft', labels: gt.labels || {} });
+  } catch {
+    res.json({ status: 'none', labels: {} });
+  }
 }));
 
 // ---------------- meta + static ----------------

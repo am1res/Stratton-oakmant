@@ -1,16 +1,18 @@
 // App shell + hash router. Owner: P3.
-// Routes: #/conversations, #/conversations/<id>?c=<criterion>&m=<msg_index>, #/appeals, #/checklist.
+// Routes: #/analytics, #/conversations, #/conversations/<id>?c=<criterion>&m=<msg_index>, #/appeals, #/checklist.
 // Add a route by importing a screen module that exports render(el, params).
 import { api, esc } from './api.js';
 import * as conversations from '../conversations/list.js';
 import * as card from '../conversations/card.js';
 import * as checklist from '../checklist/editor.js';
 import * as appeals from '../appeals/reviewer.js';
+import * as analytics from '../analytics/dashboard.js';
 
 const routes = [
   [/^#\/conversations\/([^?]+)$/, 'conversations', (m, q) => card.render(app(), { id: decodeURIComponent(m[1]), focus: q.get('c'), msg: q.get('m') })],
   [/^#\/checklist$/, 'checklist', () => checklist.render(app())],
   [/^#\/appeals$/, 'appeals', () => appeals.render(app())],
+  [/^#\/analytics$/, 'analytics', () => analytics.render(app())],
   [/^#?\/?(conversations)?$/, 'conversations', () => conversations.render(app())],
 ];
 

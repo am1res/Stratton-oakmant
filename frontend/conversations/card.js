@@ -38,6 +38,7 @@ export async function render(el, { id, focus, msg, evaluationId }) {
       <h1 class="grow">${esc(conv.conversation_id)}</h1>
       <span class="muted">${esc(conv.language)}, ${esc(CHANNEL[conv.channel] || conv.channel)}, ${conv.transcript.length} реплик</span>
       ${history}
+      <button class="ghost" id="print" title="Отчёт по оценке: печать или сохранение в PDF">Печать / PDF</button>
       <button id="run">${ev ? 'Оценить заново' : 'Оценить диалог'}</button>
     </div>
     <div class="card-layout">
@@ -141,6 +142,11 @@ export async function render(el, { id, focus, msg, evaluationId }) {
     }
   }
   runBtn.onclick = run;
+  el.querySelector('#print').onclick = () => {
+    togglePrelude(true);
+    el.querySelectorAll('details.prompt').forEach((d) => (d.open = false));
+    window.print();
+  };
   el.querySelector('#history')?.addEventListener('change', (e) => render(el, { id, evaluationId: e.target.value }));
 
   if (ev) showResult(ev);

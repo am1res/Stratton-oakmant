@@ -102,7 +102,7 @@ stores it in `evaluation.final`. The card shows `score` (original), the appeal d
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/conversations` | list with `latest_score` and `has_open_appeal` |
+| GET | `/api/conversations` | list with `latest_score`, `latest_criteria` (after appeals, with `confidence`), `gross_error`, `has_open_appeal`, `low_confidence` |
 | GET | `/api/conversations/:id` | full conversation |
 | POST | `/api/conversations/upload` | body: a conversation JSON (or `{records:[...]}`) |
 | POST | `/api/data/reload` | re-fetch from the organizers' API (`{group_id}` optional) |
@@ -113,7 +113,8 @@ stores it in `evaluation.final`. The card shows `score` (original), the appeal d
 | POST | `/api/evaluate` | `{conversation_id}` → Evaluation |
 | POST | `/api/evaluate/batch` | `{conversation_ids?}` → `{job_id}`; all when omitted |
 | GET | `/api/jobs/:id` | `{done, total, errors, status}` |
-| GET | `/api/evaluations?conversation_id=` | evaluations, newest first |
+| GET | `/api/evaluations?conversation_id=` | evaluations, newest first; `?lite=1` drops the prompt text (analytics) |
+| GET | `/api/reference` | our reference labels `{status, labels}` from `data/ground_truth.dev.json` (AI-accuracy panel only, never used for grading) |
 | GET | `/api/evaluations/:id` | one evaluation |
 | POST | `/api/appeals` | `{evaluation_id, criterion_id, comment}` |
 | GET | `/api/appeals?status=open` | appeals list |
