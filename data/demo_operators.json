@@ -1,0 +1,267 @@
+{
+ "_about": "Demo operator names and chat dates for the DEV set (the organizers' data has neither). Arranged by the draft reference grades (data/ground_truth.dev.json) into scenarios: Дамир consistently strong, Ержан weak (all gross errors), Айгерим improving, Мирас declining, Алина and Валерия ordinary (+ calls, which keep their real date). Only names and dates; scores shown in the app are the real AI evaluations.",
+ "created_at": "2026-11-07T19:19:39.646Z",
+ "source": "ground_truth",
+ "assignments": {
+  "p1-ru-019": {
+   "operator": "Дамир",
+   "date": "2026-09-14"
+  },
+  "p1-ru-017": {
+   "operator": "Дамир",
+   "date": "2026-09-22"
+  },
+  "p1-ru-030": {
+   "operator": "Дамир",
+   "date": "2026-10-01"
+  },
+  "p1-ru-025": {
+   "operator": "Дамир",
+   "date": "2026-10-07"
+  },
+  "p1-ru-024": {
+   "operator": "Дамир",
+   "date": "2026-10-16"
+  },
+  "p1-ru-027": {
+   "operator": "Дамир",
+   "date": "2026-10-23"
+  },
+  "p1-ru-021": {
+   "operator": "Дамир",
+   "date": "2026-10-31"
+  },
+  "p1-ru-028": {
+   "operator": "Дамир",
+   "date": "2026-11-08"
+  },
+  "p1-ru-009": {
+   "operator": "Ержан",
+   "date": "2026-09-15"
+  },
+  "p1-kz-015": {
+   "operator": "Ержан",
+   "date": "2026-09-23"
+  },
+  "p1-kz-013": {
+   "operator": "Ержан",
+   "date": "2026-09-30"
+  },
+  "p1-en-013": {
+   "operator": "Ержан",
+   "date": "2026-10-07"
+  },
+  "p1-en-014": {
+   "operator": "Ержан",
+   "date": "2026-10-15"
+  },
+  "p1-ru-023": {
+   "operator": "Ержан",
+   "date": "2026-10-22"
+  },
+  "p1-ru-022": {
+   "operator": "Ержан",
+   "date": "2026-10-31"
+  },
+  "p1-ru-029": {
+   "operator": "Ержан",
+   "date": "2026-11-06"
+  },
+  "p1-ru-026": {
+   "operator": "Айгерим",
+   "date": "2026-09-14"
+  },
+  "p1-ru-016": {
+   "operator": "Айгерим",
+   "date": "2026-09-20"
+  },
+  "p1-ru-003": {
+   "operator": "Айгерим",
+   "date": "2026-09-25"
+  },
+  "p1-ru-005": {
+   "operator": "Айгерим",
+   "date": "2026-09-28"
+  },
+  "p1-en-001": {
+   "operator": "Айгерим",
+   "date": "2026-10-05"
+  },
+  "p1-en-005": {
+   "operator": "Айгерим",
+   "date": "2026-10-08"
+  },
+  "p1-en-011": {
+   "operator": "Айгерим",
+   "date": "2026-10-14"
+  },
+  "p1-kz-003": {
+   "operator": "Айгерим",
+   "date": "2026-10-18"
+  },
+  "p1-kz-009": {
+   "operator": "Айгерим",
+   "date": "2026-10-23"
+  },
+  "p1-ru-001": {
+   "operator": "Айгерим",
+   "date": "2026-10-29"
+  },
+  "p1-ru-008": {
+   "operator": "Айгерим",
+   "date": "2026-11-01"
+  },
+  "p1-ru-013": {
+   "operator": "Айгерим",
+   "date": "2026-11-08"
+  },
+  "p1-en-002": {
+   "operator": "Мирас",
+   "date": "2026-09-16"
+  },
+  "p1-en-006": {
+   "operator": "Мирас",
+   "date": "2026-09-19"
+  },
+  "p1-en-012": {
+   "operator": "Мирас",
+   "date": "2026-09-25"
+  },
+  "p1-kz-004": {
+   "operator": "Мирас",
+   "date": "2026-09-29"
+  },
+  "p1-kz-010": {
+   "operator": "Мирас",
+   "date": "2026-10-04"
+  },
+  "p1-ru-002": {
+   "operator": "Мирас",
+   "date": "2026-10-08"
+  },
+  "p1-ru-010": {
+   "operator": "Мирас",
+   "date": "2026-10-15"
+  },
+  "p1-ru-015": {
+   "operator": "Мирас",
+   "date": "2026-10-20"
+  },
+  "p1-en-008": {
+   "operator": "Мирас",
+   "date": "2026-10-23"
+  },
+  "p1-en-007": {
+   "operator": "Мирас",
+   "date": "2026-10-28"
+  },
+  "p1-en-015": {
+   "operator": "Мирас",
+   "date": "2026-11-01"
+  },
+  "p1-ru-018": {
+   "operator": "Мирас",
+   "date": "2026-11-07"
+  },
+  "p1-kz-008": {
+   "operator": "Алина",
+   "date": "2026-09-16"
+  },
+  "p1-kz-006": {
+   "operator": "Алина",
+   "date": "2026-09-20"
+  },
+  "p1-kz-002": {
+   "operator": "Алина",
+   "date": "2026-09-28"
+  },
+  "p1-ru-014": {
+   "operator": "Алина",
+   "date": "2026-10-02"
+  },
+  "p1-ru-006": {
+   "operator": "Алина",
+   "date": "2026-10-09"
+  },
+  "p1-ru-012": {
+   "operator": "Алина",
+   "date": "2026-10-13"
+  },
+  "p1-kz-014": {
+   "operator": "Алина",
+   "date": "2026-10-21"
+  },
+  "p1-kz-012": {
+   "operator": "Алина",
+   "date": "2026-10-27"
+  },
+  "p1-en-010": {
+   "operator": "Алина",
+   "date": "2026-11-02"
+  },
+  "p1-en-003": {
+   "operator": "Алина",
+   "date": "2026-11-06"
+  },
+  "p1-kz-007": {
+   "operator": "Валерия",
+   "date": "2026-09-15"
+  },
+  "p1-kz-005": {
+   "operator": "Валерия",
+   "date": "2026-09-22"
+  },
+  "p1-kz-001": {
+   "operator": "Валерия",
+   "date": "2026-09-27"
+  },
+  "p1-ru-007": {
+   "operator": "Валерия",
+   "date": "2026-10-04"
+  },
+  "p1-ru-011": {
+   "operator": "Валерия",
+   "date": "2026-10-09"
+  },
+  "p1-ru-004": {
+   "operator": "Валерия",
+   "date": "2026-10-15"
+  },
+  "p1-kz-011": {
+   "operator": "Валерия",
+   "date": "2026-10-19"
+  },
+  "p1-en-009": {
+   "operator": "Валерия",
+   "date": "2026-10-26"
+  },
+  "p1-en-004": {
+   "operator": "Валерия",
+   "date": "2026-11-02"
+  },
+  "p1-ru-020": {
+   "operator": "Валерия",
+   "date": "2026-11-07"
+  },
+  "p4-ru-003": {
+   "operator": "Алина",
+   "date": null
+  },
+  "p4-ru-002": {
+   "operator": "Валерия",
+   "date": null
+  },
+  "p4-ru-001": {
+   "operator": "Алина",
+   "date": null
+  },
+  "p4-ru-005": {
+   "operator": "Валерия",
+   "date": null
+  },
+  "p4-ru-004": {
+   "operator": "Алина",
+   "date": null
+  }
+ }
+}

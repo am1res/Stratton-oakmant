@@ -9,6 +9,15 @@ data/*.raw.json
 data/dev.json
 data/control*.json
 
-# Runtime storage (evaluations, appeals, checklist versions)
+# Runtime storage (evaluations, appeals, checklist versions, cached call audio)
 storage/
 eval/results/
+
+# Voice pipeline: real customer audio, transcripts and the Gemini key
+voice/.env
+voice/.venv/
+voice/out/
+voice/out_cmp/
+voice/__pycache__/
+*.mp3
+*.unknown.bin

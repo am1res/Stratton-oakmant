@@ -2,9 +2,9 @@
 // Switch provider by changing LLM_BASE_URL / LLM_MODEL in .env, no code changes.
 import { config } from '../config.js';
 
-export async function chatJson({ messages, schema }) {
+export async function chatJson({ messages, schema, model }) {
   const c = config.llm;
-  const body = { model: c.model, messages };
+  const body = { model: model || c.model, messages };
   if (c.strictSchema) body.response_format = { type: 'json_schema', json_schema: schema };
   else {
     body.response_format = { type: 'json_object' };

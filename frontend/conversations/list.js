@@ -33,6 +33,7 @@ export async function render(el) {
           <span class="muted" id="progress-text" aria-live="polite"></span>
           <button class="ghost" id="csv">Скачать CSV</button>
           <label class="btn ghost" tabindex="0">Загрузить транскрипт<input type="file" id="upload" accept=".json,application/json" hidden></label>
+          ${scored.length ? '<button class="ghost" id="batch-new" title="Пропустить диалоги, уже оценённые текущей версией чек-листа">Оценить неоценённые</button>' : ''}
           <button id="batch">${scored.length ? 'Переоценить все' : 'Оценить все'}</button>
         </div>
       </div>
@@ -70,7 +71,7 @@ export async function render(el) {
       ? items
           .map(
             (c) => `<tr data-id="${esc(c.conversation_id)}" tabindex="0">
-          <td class="id"><a href="#/conversations/${encodeURIComponent(c.conversation_id)}">${esc(c.conversation_id)}</a></td>
+          <td class="id"><a href="#/conversations/${encodeURIComponent(c.conversation_id)}">${esc(c.conversation_id)}</a>${c.operator ? `<span class="op-meta">${esc(c.operator)}${c.date ? `, ${esc(c.date.slice(8, 10))}.${esc(c.date.slice(5, 7))}` : ''}${c.operator_source === 'demo' || c.date_source === 'demo' ? ' (демо)' : ''}</span>` : ''}</td>
           <td><span class="lang">${esc(c.language)}</span><span class="chan">${esc(CHANNEL[c.channel] || c.channel)}</span></td>
           <td class="strip-cell">${c.latest_criteria ? stripHtml(c.latest_criteria) : '<span class="muted">не оценён</span>'}</td>
           <td class="num">${c.latest_score ?? '<span class="muted">—</span>'}</td>
@@ -132,14 +133,16 @@ export async function render(el) {
     if (currentPath() !== path) return; // keep activeJob; polling resumes when the list is opened again
     try {
       const j = await api.job(activeJob.id);
+      if (currentPath() !== path) return; // user opened another page while we waited: don't touch it
       bar.hidden = false;
-      bar.firstElementChild.style.width = `${(j.done / j.total) * 100}%`;
-      text.textContent = `Оценено ${j.done} из ${j.total}${j.errors.length ? `, не удалось: ${j.errors.length}` : ''}`;
+      bar.firstElementChild.style.width = `${j.total ? (j.done / j.total) * 100 : 100}%`;
+      text.textContent = `Оценено ${j.done} из ${j.total}${j.skipped ? `, пропущено уже оценённых: ${j.skipped}` : ''}${j.errors.length ? `, не удалось: ${j.errors.length}` : ''}`;
       batchBtn.disabled = true;
       if (j.status === 'done') {
         activeJob = null;
         lastFailures = j.errors;
-        setTimeout(() => render(el), 500);
+        // re-render the list only if the user is still on it (it used to overwrite an open card)
+        setTimeout(() => currentPath() === path && render(el), 500);
       } else setTimeout(poll, 1200);
     } catch (err) {
       text.textContent = `Прогресс недоступен: ${humanError(err)}`;
@@ -148,12 +151,19 @@ export async function render(el) {
     }
   };
 
-  async function startJob(ids) {
+  async function startJob(ids, skipDone = false) {
     batchBtn.disabled = true;
     lastFailures = [];
     showFailures();
     try {
-      activeJob = await api.evaluateBatch(ids);
+      const job = await api.evaluateBatch(ids, skipDone);
+      if (!job.total) {
+        // nothing to do: say so and keep the message (no re-render that would erase it)
+        text.textContent = `Всё уже оценено текущей версией чек-листа (пропущено: ${job.skipped}). Чтобы оценить заново, нажмите «Переоценить все».`;
+        batchBtn.disabled = false;
+        return;
+      }
+      activeJob = job;
       poll();
     } catch (err) {
       batchBtn.disabled = false;
@@ -161,8 +171,10 @@ export async function render(el) {
     }
   }
 
-  batchBtn.onclick = () =>
-    startJob(list.filter((c) => (!state.lang || c.language === state.lang) && (!state.channel || c.channel === state.channel)).map((c) => c.conversation_id));
+  const visibleIds = () => list.filter((c) => (!state.lang || c.language === state.lang) && (!state.channel || c.channel === state.channel)).map((c) => c.conversation_id);
+  batchBtn.onclick = () => startJob(visibleIds());
+  const newBtn = el.querySelector('#batch-new');
+  if (newBtn) newBtn.onclick = () => startJob(visibleIds(), true);
   if (activeJob) poll();
   showFailures();
 

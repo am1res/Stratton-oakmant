@@ -36,7 +36,7 @@ export async function render(el, { id, focus, msg, evaluationId }) {
     <a class="crumb" href="#/conversations">← Все диалоги</a>
     <div class="page-head">
       <h1 class="grow">${esc(conv.conversation_id)}</h1>
-      <span class="muted">${esc(conv.language)}, ${esc(CHANNEL[conv.channel] || conv.channel)}, ${conv.transcript.length} реплик</span>
+      <span class="muted">${conv.operator ? `<a href="#/operators/${encodeURIComponent(conv.operator)}">${esc(conv.operator)}</a>${conv.operator_source === 'demo' ? ' (демо)' : ''}, ` : ''}${conv.date ? `${esc(conv.date.slice(8, 10))}.${esc(conv.date.slice(5, 7))}.${esc(conv.date.slice(0, 4))}${conv.date_source === 'demo' ? ' (демо)' : ''}, ` : ''}${esc(conv.language)}, ${esc(CHANNEL[conv.channel] || conv.channel)}, ${conv.transcript.length} реплик</span>
       ${history}
       <button class="ghost" id="print" title="Отчёт по оценке: печать или сохранение в PDF">Печать / PDF</button>
       <button id="run">${ev ? 'Оценить заново' : 'Оценить диалог'}</button>
@@ -45,6 +45,7 @@ export async function render(el, { id, focus, msg, evaluationId }) {
       <section class="sheet transcript-wrap" aria-label="Транскрипт">
         <div class="thead"><h2>Транскрипт</h2><span class="muted" style="font-size:12px">оценивается только оператор</span></div>
         <div id="player"></div>
+        <div id="voice"></div>
         <div class="transcript" id="transcript">
           ${prelude.length ? `<button class="ghost prelude-toggle" id="prelude-btn">Показать начало: клиент и бот до оператора, ${prelude.length} реплик</button><div id="prelude" hidden>${prelude.map(line).join('')}</div>` : ''}
           ${handover ? `<div class="handover" id="msg-${handover.msg_index}" data-idx="${handover.msg_index}">#${handover.msg_index} Подключился оператор</div>` : ''}
@@ -152,11 +153,52 @@ export async function render(el, { id, focus, msg, evaluationId }) {
   if (ev) showResult(ev);
   else showNotRated();
 
+  // ---- voice analysis (calls only): a hint for the reviewer, not part of the score ----
+  if (conv.channel === 'voice call') {
+    api
+      .voice(id)
+      .then((v) => {
+        if (currentPath() !== path) return;
+        renderVoice(el.querySelector('#voice'), v, (i) => highlight([i], i));
+      })
+      .catch(() => {});
+  }
+
   // deep link to a message
   if (msg !== null && msg !== undefined && msg !== '') {
     const i = Number(msg);
     if (Number.isInteger(i)) setTimeout(() => highlight([i], i), 50);
   }
+}
+
+const VOICE_OVERALL = {
+  ok: ['pass', 'Тон в норме'],
+  possible_issue: ['partial', 'Возможна проблема с тоном'],
+  clear_issue: ['fail', 'Проблема с тоном'],
+};
+const CUE = { sigh: 'вздох', sarcasm: 'сарказм', flat: 'холодный / безучастный тон', mocking_stress: 'насмешливое ударение', laugh: 'смешок', interrupt: 'перебивает', rude_words: 'грубые слова', other: 'другое' };
+const NOTE = { apology_after_interrupt: 'извинился, что перебил', apology_other: 'извинился', empathy: 'эмпатия', other: 'заметка' };
+
+function renderVoice(box, v, onJump) {
+  if (!box) return;
+  if (!v?.available) {
+    box.innerHTML = `<details class="voice"><summary>Анализ голоса: нет данных</summary>
+      <p class="muted">Запустите <code>python3 voice/to_gemini.py data/dev.json --out voice/out</code>, затем обновите страницу.</p></details>`;
+    return;
+  }
+  const [cls, title] = VOICE_OVERALL[v.overall] || ['na', v.overall];
+  const item = (x, label, kind) =>
+    `<li class="${kind}">${x.msg_index !== null ? `<button class="ev" data-jump="${x.msg_index}" title="Перейти к реплике и включить запись">#${x.msg_index}</button>` : `<span class="muted">${esc(x.heard_at || x.time || '')}</span>`}
+      <b>${esc(label)}</b>${x.label === 'clear' ? ' <span class="v fail">явно</span>' : x.label === 'possible' ? ' <span class="v partial">возможно</span>' : ''}
+      <span class="crit-why">${esc(x.reason)}</span></li>`;
+  box.innerHTML = `<details class="voice" ${v.flags.length ? 'open' : ''}>
+      <summary><span class="v ${cls}">${esc(title)}</span> Анализ голоса оператора <span class="muted">подсказка для проверяющего, на балл не влияет</span></summary>
+      <p class="crit-why">${esc(v.summary)}</p>
+      ${v.flags.length ? `<ul class="voice-list">${v.flags.map((f) => item(f, CUE[f.cue] || f.cue, 'flag-item')).join('')}</ul>` : ''}
+      ${v.notes.length ? `<ul class="voice-list">${v.notes.map((n) => item(n, NOTE[n.kind] || n.kind, 'note-item')).join('')}</ul>` : ''}
+      <p class="muted voice-meta">${esc(v.model || '')}${v.audio_only ? ', только аудио' : ''}${v.cost_usd ? `, $${Number(v.cost_usd).toFixed(4)}` : ''}</p>
+    </details>`;
+  box.querySelectorAll('[data-jump]').forEach((b) => b.addEventListener('click', () => onJump(Number(b.dataset.jump))));
 }
 
 // "2026-11-03T13:49:47.26+00:00" → "13:49:47"; chats keep "01:15"

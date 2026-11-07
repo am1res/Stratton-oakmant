@@ -8,9 +8,15 @@
 // 5. Round the total to `rounding` decimals; if no weighted criterion applies, total = null.
 //    Gross errors (type "flag") are reported separately and never change the total.
 
+/** Half-up rounding without binary float surprises: roundTo(1.005, 2) = 1.01, roundTo(81.875, 2) = 81.88. */
 export function roundTo(x, decimals = 2) {
-  const f = 10 ** decimals;
-  return Math.round((x + Number.EPSILON) * f) / f;
+  if (!Number.isFinite(x)) return x;
+  const s = String(x);
+  if (/e/i.test(s)) {
+    const f = 10 ** decimals; // tiny/huge numbers: fall back to the plain method
+    return Math.round((x + Number.EPSILON) * f) / f;
+  }
+  return Number(`${Math.round(Number(`${s}e${decimals}`))}e-${decimals}`);
 }
 
 function scaleMax(c) {

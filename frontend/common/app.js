@@ -7,12 +7,15 @@ import * as card from '../conversations/card.js';
 import * as checklist from '../checklist/editor.js';
 import * as appeals from '../appeals/reviewer.js';
 import * as analytics from '../analytics/dashboard.js';
+import * as operators from '../operators/operators.js';
 
 const routes = [
   [/^#\/conversations\/([^?]+)$/, 'conversations', (m, q) => card.render(app(), { id: decodeURIComponent(m[1]), focus: q.get('c'), msg: q.get('m') })],
   [/^#\/checklist$/, 'checklist', () => checklist.render(app())],
   [/^#\/appeals$/, 'appeals', () => appeals.render(app())],
   [/^#\/analytics$/, 'analytics', () => analytics.render(app())],
+  [/^#\/operators\/([^?]+)$/, 'operators', (m) => operators.render(app(), { name: decodeURIComponent(m[1]) })],
+  [/^#\/operators$/, 'operators', () => operators.render(app())],
   [/^#?\/?(conversations)?$/, 'conversations', () => conversations.render(app())],
 ];
 
@@ -69,5 +72,5 @@ window.addEventListener('hashchange', route);
 route();
 api
   .meta()
-  .then((m) => (document.getElementById('meta').innerHTML = `Модель <b>${esc(m.model)}</b>, набор <b>${esc(m.group_id)}</b>`))
+  .then((m) => (document.getElementById('meta').innerHTML = `Модель <b>${esc(m.model)}</b>${m.mode === 'ensemble' ? ' (A+B+арбитр)' : ''}, набор <b>${esc(m.group_id)}</b>`))
   .catch(() => {});
