@@ -27,6 +27,7 @@ export async function render(el) {
         <div class="weightbar" id="weights"></div>
         <button class="ghost" id="add" style="margin-left:auto">Добавить критерий</button>
       </div>
+      <div class="crit-cols" aria-hidden="true"><span>ID</span><span>Критерий</span><span>Тип ответа</span><span>Вес</span><span>N/A</span><span></span></div>
       <div id="crits"></div>
     </section>
     <details class="sheet sheet-pad" style="margin-top:16px">
@@ -50,7 +51,13 @@ export async function render(el) {
     const sum = draft.criteria.filter((c) => c.type !== 'flag').reduce((s, c) => s + (Number(c.weight) || 0), 0);
     const w = el.querySelector('#weights');
     w.className = `weightbar ${sum === 100 ? '' : 'bad'}`;
-    w.innerHTML = `Сумма весов: <b>${sum}</b>${sum === 100 ? '' : '. Итог будет считаться из этой суммы, обычно нужно 100'}`;
+    const bars = draft.criteria
+      .filter((c) => c.type !== 'flag' && Number(c.weight) > 0)
+      .map((c) => `<span style="flex:${Number(c.weight)} 1 0" title="${esc(c.id)} ${esc(c.name)}: ${c.weight}"></span>`)
+      .join('');
+    w.innerHTML = `<span>Сумма весов: <b>${sum}</b>${sum === 100 ? '' : '. Итог будет считаться из этой суммы, обычно нужно 100'}</span>
+      <span class="weights-mini" role="img" aria-label="Распределение весов по критериям">${bars}</span>`;
+    w.style.flex = '1 1 auto';
   }
 
   function draw() {
@@ -154,9 +161,9 @@ function critHtml(c, i, sections, isOpen) {
     <summary>
       <span class="tag">${esc(c.id)}</span>
       <span class="sum-name" style="font-weight:500">${esc(c.name)}</span>
-      <span class="tag">${TYPES[c.type] || c.type}</span>
-      <span class="tag">вес <span class="sum-weight">${c.weight}</span></span>
-      <span class="tag">${c.na_allowed ? 'N/A можно' : ''}</span>
+      <span class="tag">${c.type === 'scale' && c.scale?.length ? `Шкала ${Math.min(...c.scale.map((s) => s.value))}–${Math.max(...c.scale.map((s) => s.value))}` : TYPES[c.type] || c.type}</span>
+      <span><span class="sum-weight">${c.type === 'flag' ? '—' : c.weight}</span></span>
+      <span class="tag">${c.na_allowed ? 'можно' : 'нельзя'}</span>
     </summary>
     <div class="body">
       <label class="field">Название<input data-k="name" value="${esc(c.name)}"></label>

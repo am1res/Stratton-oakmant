@@ -44,6 +44,7 @@ export async function render(el) {
         <thead><tr><th>Диалог</th><th>Язык и канал</th><th>Из чего сложился балл</th><th style="text-align:right">Итог</th><th>Внимание</th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
+      <p class="strip-note">Полоса: каждый критерий — отрезок шириной в свой вес, заливка — набранные баллы; штриховка — критерии N/A, их вес отдан остальным.</p>
     </section>`;
 
   const rows = el.querySelector('#rows');

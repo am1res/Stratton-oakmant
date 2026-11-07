@@ -3,6 +3,7 @@
 // disputed fragment, and an optional AI second opinion. The decision is always the reviewer's.
 import { api, esc, fmtAnswer, APPEAL_STATUS, SPEAKER } from '../common/api.js';
 import { refreshNav } from '../common/app.js';
+import { computeScore } from '/shared/scoring.js';
 
 let tab = 'open';
 
@@ -80,18 +81,33 @@ export async function render(el) {
               <input data-reason placeholder="Причина решения (видна в карточке диалога)" aria-label="Причина решения">
               <button data-decide>Сохранить решение</button>
             </div>
+            <p class="preview-total" data-preview aria-live="polite"></p>
             <p class="error" data-err aria-live="polite"></p>`
       }`;
 
     let chosen = ap.original.answer;
+    // Preview of the total before saving: current answers (with earlier decisions) + this choice
+    const base = Object.fromEntries(ev.criteria.map((r) => [r.criterion_id, ev.final?.overrides?.[r.criterion_id]?.answer ?? r.answer]));
+    const fmt = (x) => (x === null ? '—' : String(x).replace('.', ','));
+    const nowTotal = computeScore(ev.checklist_snapshot, base).total;
+    const preview = () => {
+      const p = node.querySelector('[data-preview]');
+      if (!p) return;
+      const next = computeScore(ev.checklist_snapshot, { ...base, [crit.id]: chosen }).total;
+      p.textContent = next === nowTotal
+        ? `Итог диалога не изменится: ${fmt(nowTotal)}.`
+        : `После решения итог пересчитается: ${fmt(nowTotal)} → ${fmt(next)}. Исходная оценка останется в карточке.`;
+    };
     node.querySelectorAll('[data-answer]').forEach((b) =>
       b.addEventListener('click', () => {
         chosen = isNaN(Number(b.dataset.answer)) ? b.dataset.answer : Number(b.dataset.answer);
         node.querySelectorAll('[data-answer]').forEach((x) => x.setAttribute('aria-pressed', x === b));
         node.querySelector('[data-decide]').textContent = chosen === ap.original.answer ? 'Подтвердить оценку' : 'Изменить оценку';
+        preview();
       }),
     );
     if (node.querySelector('[data-decide]')) node.querySelector('[data-decide]').textContent = 'Подтвердить оценку';
+    preview();
 
     node.querySelector('[data-suggest]')?.addEventListener('click', async (e) => {
       e.target.disabled = true;
