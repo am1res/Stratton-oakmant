@@ -3,21 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CQA · Conversation Quality Analytics</title>
+  <title>CQA: оценка качества диалогов</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="common/style.css">
 </head>
 <body>
   <header class="topbar">
-    <strong>CQA</strong>
-    <nav>
-      <a href="#/conversations">Диалоги</a>
-      <a href="#/checklist">Чек-лист</a>
-      <a href="#/appeals">Апелляции</a>
+    <a class="brand" href="#/conversations"><strong>CQA</strong><span>контроль качества диалогов</span></a>
+    <nav aria-label="Разделы">
+      <a href="#/conversations" data-nav="conversations">Диалоги</a>
+      <a href="#/appeals" data-nav="appeals">Апелляции <span class="count" id="appeal-count" hidden></span></a>
+      <a href="#/checklist" data-nav="checklist">Чек-лист</a>
     </nav>
-    <span id="meta" class="muted"></span>
+    <span class="model" id="meta"></span>
   </header>
-  <!-- Each screen is a self-contained module with render(el, params): easy to mount later
-       as an HTML web resource in Dynamics 365. One mount point; the router swaps screens. -->
+  <!-- Each screen is a self-contained module with render(el, params), so it can be mounted
+       later as an HTML web resource in Dynamics 365. -->
   <main id="app"></main>
   <script type="module" src="common/app.js"></script>
 </body>

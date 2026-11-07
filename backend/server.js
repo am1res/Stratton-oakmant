@@ -38,6 +38,20 @@ function getConv(id) {
   return c;
 }
 
+/** Per-criterion answers and points after appeals, for the score strip. */
+function criteriaSummary(e) {
+  const answers = Object.fromEntries(e.criteria.map((r) => [r.criterion_id, e.final?.overrides?.[r.criterion_id]?.answer ?? r.answer]));
+  const s = computeScore(e.checklist_snapshot, answers);
+  return e.checklist_snapshot.criteria.map((c) => ({
+    id: c.id,
+    name: c.name,
+    type: c.type,
+    answer: answers[c.id],
+    points: s.criteria[c.id].points,
+    effective_weight: s.criteria[c.id].effective_weight,
+  }));
+}
+
 app.get('/api/conversations', wrap(async (req, res) => {
   const evals = await store.list('evaluations');
   const appeals = await store.list('appeals');
@@ -55,6 +69,8 @@ app.get('/api/conversations', wrap(async (req, res) => {
         messages: c.transcript.length,
         latest_evaluation_id: e?.id || null,
         latest_score: s ? s.total : null,
+        // compact per-criterion summary for the score strip in the list
+        latest_criteria: e ? criteriaSummary(e) : null,
         gross_error: s ? s.gross_error : null,
         has_open_appeal: appeals.some((a) => a.conversation_id === c.conversation_id && a.status === 'open'),
       };

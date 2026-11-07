@@ -33,6 +33,10 @@ export const api = {
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+export const APPEAL_STATUS = { open: 'Ждёт решения', confirmed: 'Оценка подтверждена', changed: 'Оценка изменена' };
+export const CHANNEL = { 'agent chat': 'чат', 'voice call': 'звонок' };
+export const SPEAKER = { client: 'Клиент', operator: 'Оператор', bot: 'Бот', system: 'Система' };
+
 export function fmtAnswer(a) {
   if (a === 'yes') return 'Да';
   if (a === 'no') return 'Нет';
