@@ -11,17 +11,18 @@ Only edit your own folders. Need a change elsewhere? Ask the owner.
 | **P3 · Main frontend** | `frontend/index.html`, `frontend/common/` (app shell, router, API client, styles, score strip), `frontend/conversations/`, `frontend/results/`, `frontend/player/` | List, card, transcript anchors, evidence navigation, result states, audio player. Check audio sync on real calls (`OFFSET_SHIFT` in `player.js`). |
 | **P4 · Checklist, appeals, QA** | `frontend/checklist/`, `frontend/appeals/`, `data/ground_truth.dev.json`, demo script | Review the draft ground truth (`check` entries first), rehearse "replace a criterion", reviewer flow, demo script. |
 
-Shared (small edits only, pull right before editing, announce in chat): `contracts/`, `frontend/index.html`,
-`frontend/common/`, `README.md`.
+Shared (small edits only, pull right before editing, announce in chat): `contracts/`, `README.md`.
+P3 owns the app shell (`frontend/index.html`, `frontend/common/`): ask P3 to add a route or nav item.
 
-## Git routine (everyone commits to `main`)
+## Git routine (everyone works on the `Amur` branch; `main` stays empty)
 
 ```bash
+git checkout Amur
 git pull --rebase           # before you start and before every push
 git add <your files>
 git commit -m "results: show N/A reason"
 git pull --rebase
-git push
+git push origin Amur
 ```
 
 - Prefix messages with your area: `api:`, `llm:`, `eval:`, `checklist:`, `results:`, `card:`, `appeals:`, `contracts:`, `docs:`.
