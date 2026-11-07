@@ -1,13 +1,17 @@
-// Conversation list. Owner: P4.
+// Conversation list. Owner: P3.
 // Job: "which conversations need my attention?" → summary first, gross errors and open appeals
 // stand out, the score strip shows which criteria failed without opening the card.
-import { api, esc, CHANNEL } from '../common/api.js';
+import { api, esc, CHANNEL, humanError } from '../common/api.js';
+import { currentPath } from '../common/app.js';
 import { stripHtml } from '../common/strip.js';
 
 const state = { lang: '', channel: '', onlyProblems: false, q: '', sort: 'id' };
+let activeJob = null; // survives re-renders, so leaving the page doesn't lose batch progress
+let lastFailures = [];
 
 export async function render(el) {
   const list = await api.conversations();
+  if (!list.length) return renderEmpty(el);
   const scored = list.filter((c) => c.latest_score !== null);
   const avg = scored.length ? Math.round(scored.reduce((s, c) => s + c.latest_score, 0) / scored.length) : null;
   const gross = list.filter((c) => c.gross_error).length;
@@ -30,6 +34,7 @@ export async function render(el) {
           <button id="batch">${scored.length ? 'Переоценить все' : 'Оценить все'}</button>
         </div>
       </div>
+      <div id="failures"></div>
       <div class="filters">
         <input type="search" id="q" placeholder="Поиск по ID" value="${esc(state.q)}" aria-label="Поиск по ID">
         <select id="lang" aria-label="Язык"><option value="">Все языки</option>${langs.map((l) => `<option ${l === state.lang ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
@@ -96,22 +101,58 @@ export async function render(el) {
   bind('#sort', 'sort');
   bind('#problems', 'onlyProblems', 'checked');
 
-  el.querySelector('#batch').onclick = async (e) => {
-    e.target.disabled = true;
-    const ids = list.filter((c) => (!state.lang || c.language === state.lang) && (!state.channel || c.channel === state.channel)).map((c) => c.conversation_id);
-    const job = await api.evaluateBatch(ids);
-    const bar = el.querySelector('#progress');
-    const text = el.querySelector('#progress-text');
-    bar.hidden = false;
-    const tick = async () => {
-      const j = await api.job(job.id);
+  const batchBtn = el.querySelector('#batch');
+  const bar = el.querySelector('#progress');
+  const text = el.querySelector('#progress-text');
+  const path = currentPath();
+
+  const showFailures = () => {
+    const box = el.querySelector('#failures');
+    if (!lastFailures.length) return (box.innerHTML = '');
+    box.innerHTML = `<div class="fail-box" role="alert">
+      <p><strong>Не удалось оценить ${lastFailures.length}:</strong> ${lastFailures.map((f) => esc(f.conversation_id)).join(', ')}</p>
+      <p class="muted">${esc(humanError({ message: lastFailures[0].error }))}</p>
+      <p><button data-retry>Повторить для них</button></p></div>`;
+    box.querySelector('[data-retry]').onclick = () => startJob(lastFailures.map((f) => f.conversation_id));
+  };
+
+  const poll = async () => {
+    if (currentPath() !== path) return; // keep activeJob; polling resumes when the list is opened again
+    try {
+      const j = await api.job(activeJob.id);
+      bar.hidden = false;
       bar.firstElementChild.style.width = `${(j.done / j.total) * 100}%`;
       text.textContent = `Оценено ${j.done} из ${j.total}${j.errors.length ? `, не удалось: ${j.errors.length}` : ''}`;
-      if (j.status === 'done') setTimeout(() => render(el), 600);
-      else setTimeout(tick, 1200);
-    };
-    tick();
+      batchBtn.disabled = true;
+      if (j.status === 'done') {
+        activeJob = null;
+        lastFailures = j.errors;
+        setTimeout(() => render(el), 500);
+      } else setTimeout(poll, 1200);
+    } catch (err) {
+      text.textContent = `Прогресс недоступен: ${humanError(err)}`;
+      activeJob = null;
+      batchBtn.disabled = false;
+    }
   };
+
+  async function startJob(ids) {
+    batchBtn.disabled = true;
+    lastFailures = [];
+    showFailures();
+    try {
+      activeJob = await api.evaluateBatch(ids);
+      poll();
+    } catch (err) {
+      batchBtn.disabled = false;
+      text.textContent = `Не запущено: ${humanError(err)}`;
+    }
+  }
+
+  batchBtn.onclick = () =>
+    startJob(list.filter((c) => (!state.lang || c.language === state.lang) && (!state.channel || c.channel === state.channel)).map((c) => c.conversation_id));
+  if (activeJob) poll();
+  showFailures();
 
   el.querySelector('#upload').onchange = async (e) => {
     const file = e.target.files[0];
@@ -123,6 +164,36 @@ export async function render(el) {
       setTimeout(() => render(el), 900);
     } catch (err) {
       text.textContent = `Файл не загружен: ${err.message}. Нужен JSON с conversation_id и transcript.`;
+    }
+  };
+}
+
+function renderEmpty(el) {
+  el.innerHTML = `
+    <div class="page-head"><h1 class="grow">Диалоги</h1></div>
+    <section class="sheet state-box">
+      <h2>Диалоги не загружены</h2>
+      <p class="muted">Сервер не смог получить данные организаторов. Проверьте CQA_API_BASE в .env (ссылка без &amp;group_id=…) или положите файл в data/dev.json и укажите CQA_DATA_FILE=data/dev.json.</p>
+      <p><button id="reload">Загрузить данные заново</button> <label class="btn ghost" tabindex="0">Загрузить транскрипт из файла<input type="file" id="upload-empty" accept=".json,application/json" hidden></label></p>
+      <p class="error" id="empty-msg" aria-live="polite"></p>
+    </section>`;
+  el.querySelector('#reload').onclick = async (e) => {
+    e.target.disabled = true;
+    try {
+      const r = await api.reloadData();
+      if (r.count) render(el);
+      else el.querySelector('#empty-msg').textContent = 'Данных по-прежнему нет.';
+    } catch (err) {
+      el.querySelector('#empty-msg').textContent = humanError(err);
+    }
+    e.target.disabled = false;
+  };
+  el.querySelector('#upload-empty').onchange = async (e) => {
+    try {
+      await api.upload(JSON.parse(await e.target.files[0].text()));
+      render(el);
+    } catch (err) {
+      el.querySelector('#empty-msg').textContent = `Файл не загружен: ${humanError(err)}`;
     }
   };
 }

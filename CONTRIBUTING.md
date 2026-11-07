@@ -6,10 +6,10 @@ Only edit your own folders. Need a change elsewhere? Ask the owner.
 
 | Person | Owns | First tasks |
 |---|---|---|
-| **P1 · Backend** | `backend/server.js`, `backend/storage.js`, `backend/data/`, `package.json` | Put the real API link in your `.env`, check `npm run fetch-data`. Test the audio proxy on `p4-ru-002`. Prepare the control-set switch. README run steps. |
-| **P2 · AI** | `backend/llm/`, `eval/`, `contracts/checklist.default.json` (decision_steps, examples) | Add your OpenAI key, run `npm run eval -- --limit 10`, read the mismatches, improve the prompt and decision steps, repeat. Compare gpt-5-mini vs a stronger model vs `LLM_VOTES=3`. **Accuracy is the main ranking criterion.** |
-| **P3 · Checklist + results** | `frontend/checklist/`, `frontend/results/`, `shared/scoring.js` | Checklist editor: add/delete criterion, scale steps, decision steps, examples. Rehearse "replace a criterion". Polish the result panel. |
-| **P4 · Card + appeals** | `frontend/conversations/`, `frontend/appeals/`, `frontend/player/`, `data/ground_truth.dev.json` | **First:** review the draft ground truth: every entry with a non-empty `check` list, then spot-check the rest. Then filters on the list, call player seek check, reviewer screen polish. |
+| **P1 · AI engine** | `backend/llm/`, `eval/`, `contracts/checklist.default.json` (decision_steps, examples) | Add your OpenAI key, run `npm run eval -- --limit 10`, read the mismatches, improve the prompt and decision steps, repeat. **Accuracy is the main ranking criterion.** |
+| **P2 · Backend + integration** | `backend/server.js`, `backend/storage.js`, `backend/data/`, `shared/scoring.js`, `package.json`, `contracts/README.md` | Real API link in `.env`, `npm run fetch-data`, audio proxy on `p4-ru-002`, control-set switch, README run steps. |
+| **P3 · Main frontend** | `frontend/index.html`, `frontend/common/` (app shell, router, API client, styles, score strip), `frontend/conversations/`, `frontend/results/`, `frontend/player/` | List, card, transcript anchors, evidence navigation, result states, audio player. Check audio sync on real calls (`OFFSET_SHIFT` in `player.js`). |
+| **P4 · Checklist, appeals, QA** | `frontend/checklist/`, `frontend/appeals/`, `data/ground_truth.dev.json`, demo script | Review the draft ground truth (`check` entries first), rehearse "replace a criterion", reviewer flow, demo script. |
 
 Shared (small edits only, pull right before editing, announce in chat): `contracts/`, `frontend/index.html`,
 `frontend/common/`, `README.md`.
