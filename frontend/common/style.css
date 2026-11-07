@@ -1,0 +1,39 @@
+/* Minimal base styles. P3/P4: style your own screens in their folders; keep shared tokens here. */
+:root {
+  --bg: #f6f7f5; --panel: #fff; --text: #1d2420; --muted: #6b746f; --line: #dfe3df;
+  --accent: #1f5b45; --good: #2f7d4f; --bad: #b3261e; --warn: #a86400; --hl: #fff3c4;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
+.topbar { display: flex; gap: 24px; align-items: center; padding: 10px 20px; background: var(--accent); color: #fff; }
+.topbar nav a { color: #fff; margin-right: 16px; text-decoration: none; opacity: .85; }
+.topbar nav a:hover { opacity: 1; }
+.topbar .muted { color: #cfe3d8; margin-left: auto; font-size: 12px; }
+main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+.muted { color: var(--muted); }
+.error { color: var(--bad); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+table { border-collapse: collapse; width: 100%; background: var(--panel); }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); font-size: 12px; }
+button { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+button.secondary { background: #e7ece9; color: var(--text); }
+button:disabled { opacity: .5; cursor: default; }
+input, textarea, select { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; background: #e7ece9; }
+.badge.yes { background: #dcefe3; color: var(--good); }
+.badge.no { background: #f7dcda; color: var(--bad); }
+.badge.na { background: #eceff1; color: var(--muted); }
+.badge.gross { background: var(--bad); color: #fff; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+.msg { padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; }
+.msg.client { background: #eef3fb; }
+.msg.operator { background: #eef7f1; }
+.msg.bot { background: #f4f4f4; color: var(--muted); }
+.msg.system { background: transparent; color: var(--muted); font-style: italic; font-size: 12px; }
+.msg.highlight { outline: 2px solid var(--warn); background: var(--hl); }
+.msg .meta { font-size: 11px; color: var(--muted); }
+.transcript { max-height: 75vh; overflow-y: auto; }
+a.evidence { cursor: pointer; color: var(--accent); }

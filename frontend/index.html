@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CQA · Conversation Quality Analytics</title>
+  <link rel="stylesheet" href="common/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <strong>CQA</strong>
+    <nav>
+      <a href="#/conversations">Диалоги</a>
+      <a href="#/checklist">Чек-лист</a>
+      <a href="#/appeals">Апелляции</a>
+    </nav>
+    <span id="meta" class="muted"></span>
+  </header>
+  <!-- Each screen is a self-contained module with render(el, params): easy to mount later
+       as an HTML web resource in Dynamics 365. One mount point; the router swaps screens. -->
+  <main id="app"></main>
+  <script type="module" src="common/app.js"></script>
+</body>
+</html>
