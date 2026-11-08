@@ -80,8 +80,6 @@ export async function render(el) {
   // ---- AI accuracy vs reference labels ----
   const acc = accuracy(rows, ref.labels || {});
 
-  // ---- checklist version changes ----
-  const changes = versionChanges(evals);
 
   el.innerHTML = `
     <div class="page-head">
@@ -184,17 +182,6 @@ export async function render(el) {
         }
       </section>
 
-      ${changes.length ? `<section class="sheet dash-wide" aria-labelledby="h-ver">
-        <div class="dash-head"><h2 id="h-ver">Как изменились баллы</h2></div>
-        <table class="grid compact"><thead><tr><th>Диалог</th><th>Было</th><th>Стало</th><th class="r">Изменение</th><th>Критерии</th></tr></thead><tbody>${changes
-          .map(
-            (ch) => `<tr><td><a href="#/conversations/${encodeURIComponent(ch.id)}">${esc(ch.id)}</a></td>
-              <td>${fmt(ch.from.total, 2)}</td><td>${fmt(ch.to.total, 2)}</td>
-              <td class="r ${ch.delta < 0 ? 'error' : ch.delta > 0 ? 'good' : ''}">${ch.delta > 0 ? '+' : ''}${fmt(ch.delta, 2)}</td>
-              <td class="muted">${esc(ch.diff)}</td></tr>`,
-          )
-          .join('')}</tbody></table>
-      </section>` : ''}
     </div>
     <div class="tooltip" id="tip" role="tooltip" hidden></div>`;
 

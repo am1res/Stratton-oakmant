@@ -526,10 +526,11 @@ function modelLabel() {
 // Format from the organizers' guide: schema_version 1.0, team_name, model, results[].
 // The file goes to results/dev/results.json (DEV set) or results/prod/results.json (control set),
 // then it has to be committed and pushed.
-// DEV set → results/dev, every other set (the control set) → results/prod
-const targetOf = (c) => (String(c.group_id || config.api.groupId).toUpperCase() === 'DEV' ? 'dev' : 'prod');
+// DEV set → results/dev, every other set (the control set) → results/prod.
+// Transcripts uploaded by hand ("Загрузить транскрипт") are not part of any set and never go into results.
+const targetOf = (c) => (c.source === 'upload' ? null : String(c.group_id || config.api.groupId).toUpperCase() === 'DEV' ? 'dev' : 'prod');
 async function submission(target) {
-  const ids = [...conversations.values()].filter((c) => !target || targetOf(c) === target).map((c) => c.conversation_id);
+  const ids = [...conversations.values()].filter((c) => targetOf(c) && (!target || targetOf(c) === target)).map((c) => c.conversation_id);
   const evaluations = (await store.list('evaluations')).filter((e) => ids.includes(e.conversation_id));
   const local = /localhost|127\.0\.0\.1|0\.0\.0\.0/.test(config.llm.baseUrl);
   return buildSubmission({
