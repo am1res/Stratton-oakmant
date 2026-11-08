@@ -52,6 +52,7 @@ export function renderResult(el, ev, { onEvidence, onChanged, focus } = {}) {
               ? `<span class="agreement">Стоит проверить</span>`
               : ''
           }
+          ${r.reused_from ? `<span class="reused" title="Определение критерия не менялось с версии v${esc(r.reused_from.checklist_version)}, поэтому ответ перенесён без нового обращения к модели">перенесено из оценки от ${esc(fmtDate(r.reused_from.created_at))}</span>` : ''}
           <button class="link" data-appeal="${esc(c.id)}" style="margin-left:auto">Оспорить</button>
         </div>
         <div class="appeal-slot"></div>
@@ -74,6 +75,7 @@ export function renderResult(el, ev, { onEvidence, onChanged, focus } = {}) {
           ${ev.final && ev.final.total !== ev.score.total ? `<div><div class="score was">${ev.score.total ?? '—'}</div><div class="muted" style="font-size:12px">до апелляций</div></div>` : ''}
           <div class="run-meta">${new Date(ev.created_at).toLocaleString('ru-RU')}</div>
         </div>
+        ${ev.provenance?.mock ? '<div class="test-banner">Тестовая оценка без ИИ (LLM_MOCK=1). Не использовать в отчётах.</div>' : ''}
         ${grossRow ? `<div class="gross-banner">Грубая ошибка: ${esc(GROSS[grossRow.gross_error_type] || 'см. критерий ' + grossRow.criterion_id)}. Отмечается отдельно и на балл не влияет.</div>` : ''}
         ${stripHtml(items, { large: true })}
         <div class="sections">${sections
@@ -85,6 +87,7 @@ export function renderResult(el, ev, { onEvidence, onChanged, focus } = {}) {
         .map((s) => `<div class="crit-group"><h3>${esc(s.name)}</h3>${cl.criteria.filter((c) => c.section === s.id).map(row).join('')}</div>`)
         .join('')}
       ${loose.length ? `<div class="crit-group"><h3>Другие критерии</h3>${loose.map(row).join('')}</div>` : ''}
+      ${runRecord(ev)}
     </section>`;
 
   // evidence → transcript
@@ -131,3 +134,28 @@ export function renderResult(el, ev, { onEvidence, onChanged, focus } = {}) {
 
 const fmt = (x) => (x === null || x === undefined ? '—' : String(Math.round(x * 100) / 100).replace('.', ','));
 const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+
+const fmtDate = (iso) => (iso ? new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
+
+/** "Как получена эта оценка": the run record, for auditors and for proving the evaluation is live. */
+function runRecord(ev) {
+  const p = ev.provenance;
+  if (!p) return '';
+  const row = (k, v) => `<tr><th scope="row">${k}</th><td>${v}</td></tr>`;
+  const list = (ids) => (ids?.length ? ids.map(esc).join(', ') : 'нет');
+  return `<details class="prompt run-record"><summary>Как получена эта оценка</summary>
+    <table>
+      ${row('Время', esc(new Date(ev.created_at).toLocaleString('ru-RU')))}
+      ${row('Режим и модели', `${esc(p.mode)}: ${esc(p.models)}`)}
+      ${row('Версия промпта', esc(p.prompt_version || '—'))}
+      ${row('Чек-лист', `v${esc(ev.checklist_version)}, отпечаток <code>${esc(p.checklist_hash)}</code>`)}
+      ${row('Транскрипт', `отпечаток <code>${esc(p.transcript_hash)}</code>, источник: ${esc(p.source)}${p.data_group ? `, набор ${esc(p.data_group)}` : ''}`)}
+      ${row('Спросили модель заново', list(p.fresh_criteria))}
+      ${row('Перенесено без изменений', list(p.reused_criteria))}
+      ${row('Версия приложения', `<code>${esc(p.app_version)}</code>`)}
+      ${row('Обращений к модели', esc(ev.usage?.calls ?? '—'))}
+    </table>
+    <p class="muted">Отпечаток меняется при любом изменении текста диалога или чек-листа: по нему видно, что оценка сделана именно по этим данным.</p>
+    ${ev.prompt ? `<details><summary>Инструкция, которую получила модель</summary><pre>${esc(ev.prompt)}</pre></details>` : ''}
+  </details>`;
+}

@@ -76,6 +76,9 @@ console.log('\n');
 const per = Object.fromEntries(checklist.criteria.map((c) => [c.id, { ok: 0, n: 0, absErr: 0 }]));
 const mismatches = [];
 let totalAbsErr = 0, totalN = 0, gross = { tp: 0, fp: 0, fn: 0 };
+// Per-judge comparison (two-judge modes): is the second judge + arbiter better than one judge alone?
+const judge = { judge_a: { ok: 0, n: 0 }, judge_b: { ok: 0, n: 0 }, final: { ok: 0, n: 0 } };
+const adj = { disagreements: 0, finalRight: 0, aRight: 0, bRight: 0, sharedWrong: 0 };
 for (const r of rows.filter((r) => !r.error)) {
   const truth = gt[r.id].answers;
   const pred = Object.fromEntries(r.results.map((x) => [x.criterion_id, x.answer]));
@@ -89,6 +92,28 @@ for (const r of rows.filter((r) => !r.error)) {
       mismatches.push({ id: r.id, criterion: c.id, truth: t, pred: p, explanation: x.explanation });
     }
     if (c.type === 'scale' && typeof t === 'number' && typeof p === 'number') per[c.id].absErr += Math.abs(t - p);
+    const ja = r.results.find((y) => y.criterion_id === c.id)?.judge_answers;
+    const nrm = (v) => {
+      try {
+        return v === undefined ? undefined : normalizeAnswer(c, v);
+      } catch {
+        return undefined;
+      }
+    };
+    const a = nrm(ja?.judge_a);
+    const b = nrm(ja?.judge_b);
+    if (a !== undefined && b !== undefined) {
+      for (const [role, v] of [['judge_a', a], ['judge_b', b], ['final', p]]) {
+        judge[role].n++;
+        if (v === t) judge[role].ok++;
+      }
+      if (a !== b) {
+        adj.disagreements++;
+        if (p === t) adj.finalRight++;
+        if (a === t) adj.aRight++;
+        if (b === t) adj.bRight++;
+      } else if (a !== t) adj.sharedWrong++;
+    }
     if (c.type === 'flag') {
       if (t === 'yes' && p === 'yes') gross.tp++;
       else if (t === 'no' && p === 'yes') gross.fp++;
@@ -114,6 +139,11 @@ const allN = Object.values(per).reduce((s, x) => s + x.n, 0);
 console.log(`Overall criterion accuracy: ${((allOk / allN) * 100).toFixed(1)}%  (${allOk}/${allN})`);
 console.log(`Total score MAE: ${(totalAbsErr / Math.max(1, totalN)).toFixed(2)} points`);
 console.log(`Gross errors: caught ${gross.tp}, missed ${gross.fn}, false alarms ${gross.fp}`);
+if (judge.final.n) {
+  const pct = (x) => `${((x.ok / x.n) * 100).toFixed(1)}%`;
+  console.log(`Judge A alone: ${pct(judge.judge_a)} | Judge B alone: ${pct(judge.judge_b)} | Final (A+B+arbiter): ${pct(judge.final)}  (${judge.final.n} cells)`);
+  console.log(`Disagreements: ${adj.disagreements} (final right ${adj.finalRight}, A right ${adj.aRight}, B right ${adj.bRight}); both agreed but wrong: ${adj.sharedWrong}`);
+}
 console.log(`Cost: $${cost.toFixed(4)}   Errors: ${rows.filter((r) => r.error).length}`);
 
 if (mismatches.length) {
@@ -125,5 +155,5 @@ if (mismatches.length) {
 
 await fs.mkdir(path.join(ROOT, 'eval', 'results'), { recursive: true });
 const file = path.join(ROOT, 'eval', 'results', `${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
-await fs.writeFile(file, JSON.stringify({ model: config.llm.model, votes: config.llm.votes, table, overall: allOk / allN, total_mae: totalAbsErr / Math.max(1, totalN), gross, cost, mismatches, rows }, null, 1));
+await fs.writeFile(file, JSON.stringify({ model: config.llm.model, votes: config.llm.votes, table, overall: allOk / allN, total_mae: totalAbsErr / Math.max(1, totalN), gross, judge, adjudication: adj, cost, mismatches, rows }, null, 1));
 console.log(`\nSaved ${path.relative(ROOT, file)}`);

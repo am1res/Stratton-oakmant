@@ -163,12 +163,14 @@ export async function render(el) {
                <div class="acc-list">${acc.per
                  .map((p) => `<div class="acc-row" data-tip="${esc(`${p.name}: ${p.ok} из ${p.n}`)}" tabindex="0"><span>${esc(p.name)}</span><span class="mini"><span class="mini-bar" style="width:${p.rate * 100}%"></span></span><b>${fmt(p.rate * 100, 0)}%</b></div>`)
                  .join('')}</div>
+               ${judgeBlock(acc)}
                ${acc.misses.length ? `<details class="dash-sub"><summary>Расхождения (${acc.misses.length})</summary><ul class="plain">${acc.misses
                  .slice(0, 30)
                  .map((m) => `<li><a href="#/conversations/${encodeURIComponent(m.id)}?c=${encodeURIComponent(m.c)}">${esc(m.id)}, ${esc(m.name)}</a>: оценка ${esc(String(m.pred))}, эталон ${esc(String(m.truth))}</li>`)
                  .join('')}</ul></details>` : ''}`
-            : '<p class="muted dash-sub">Нет диалогов с эталонной разметкой среди оценённых.</p>'
+            : `<p class="muted dash-sub">Нет диалогов с эталонной разметкой среди оценённых${acc.testSkipped ? ` (тестовые оценки без ИИ не учитываются: ${acc.testSkipped})` : ''}. Разметьте диалоги на странице <a href="#/labeling">Разметка</a>.</p>`
         }
+        <p class="muted dash-sub">${labelSource(ref)}</p>
       </section>
 
       ${changes.length ? `<section class="sheet dash-wide" aria-labelledby="h-ver">
@@ -217,9 +219,16 @@ function accuracy(rows, labels) {
   const gross = { tp: 0, fp: 0, fn: 0 };
   const misses = [];
   let n = 0;
+  const judge = { judge_a: { ok: 0, n: 0 }, judge_b: { ok: 0, n: 0 }, final: { ok: 0, n: 0 } };
+  const adj = { disagreements: 0, finalRight: 0, aRight: 0, bRight: 0, sharedWrong: 0 };
+  let testSkipped = 0;
   for (const r of rows) {
     const lab = labels[r.e.conversation_id];
     if (!lab) continue;
+    if (r.e.provenance?.mock) {
+      testSkipped++; // test evaluations without a model say nothing about accuracy
+      continue;
+    }
     n++;
     const truth = {};
     for (const c of r.cl.criteria) {
@@ -231,7 +240,31 @@ function accuracy(rows, labels) {
         continue;
       }
       truth[c.id] = t;
-      const p = r.e.criteria.find((x) => x.criterion_id === c.id)?.answer; // AI's own answer, before appeals
+      const res = r.e.criteria.find((x) => x.criterion_id === c.id);
+      const p = res?.answer; // AI's own answer, before appeals
+      // Per-judge comparison on the same cells: was the second judge + arbiter worth it?
+      const ja = res?.judge_answers;
+      const norm = (v) => {
+        try {
+          return v === undefined ? undefined : normalizeAnswer(c, v);
+        } catch {
+          return undefined;
+        }
+      };
+      const a = norm(ja?.judge_a);
+      const b = norm(ja?.judge_b);
+      if (a !== undefined && b !== undefined) {
+        for (const [role, v] of [['judge_a', a], ['judge_b', b], ['final', p]]) {
+          judge[role].n++;
+          if (v === t) judge[role].ok++;
+        }
+        if (a !== b) {
+          adj.disagreements++;
+          if (p === t) adj.finalRight++;
+          if (a === t) adj.aRight++;
+          if (b === t) adj.bRight++;
+        } else if (a !== t) adj.sharedWrong++;
+      }
       const hit = p === t;
       (per[c.id] ||= { id: c.id, name: c.name, ok: 0, n: 0 }).n++;
       if (hit) per[c.id].ok++, ok++;
@@ -260,6 +293,9 @@ function accuracy(rows, labels) {
     gross,
     misses,
     per: Object.values(per).map((p) => ({ ...p, rate: p.ok / p.n })),
+    judge,
+    adj,
+    testSkipped,
   };
 }
 
@@ -307,23 +343,69 @@ export async function exportAllCsv() {
   downloadCsv(rows);
 }
 
+// Spreadsheet formula injection: a cell starting with = + - @ (or a tab/CR) is run as a formula by
+// Excel. Such cells are prefixed with an apostrophe so they stay text.
+const cell = (v) => {
+  const t = String(v ?? '');
+  return `"${(/^[=+\-@\t\r]/.test(t) ? `'${t}` : t).replace(/"/g, '""')}"`;
+};
+
 function downloadCsv(rows) {
   const ids = [...new Set(rows.flatMap((r) => r.cl.criteria.map((c) => c.id)))];
-  const head = ['conversation_id', 'language', 'channel', 'checklist_version', 'total', 'gross_error', ...ids, 'evaluated_at', 'model'];
+  // *_ai = the system's original automatic answer; *_final = after reviewer decisions on appeals.
+  const head = [
+    'conversation_id', 'language', 'channel', 'checklist_version', 'is_test',
+    'total_ai', 'total_final', 'gross_error_ai', 'gross_error_final',
+    ...ids.flatMap((id) => [`${id}_ai`, `${id}_final`]),
+    'appeals_changed', 'evaluated_at', 'model', 'transcript_hash', 'checklist_hash',
+  ];
   const lines = [head.join(';')];
   for (const r of rows) {
+    const orig = Object.fromEntries(r.e.criteria.map((x) => [x.criterion_id, x.answer]));
+    const changed = Object.keys(r.e.final?.overrides || {}).length;
     lines.push(
-      [r.e.conversation_id, r.lang, r.channel, r.e.checklist_version, r.s.total ?? '', r.s.gross_error ? 'yes' : 'no', ...ids.map((id) => r.answers[id] ?? ''), r.e.created_at, r.e.model]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+      [
+        r.e.conversation_id, r.lang, r.channel, r.e.checklist_version, r.e.provenance?.mock ? 'yes' : 'no',
+        r.e.score.total ?? '', r.s.total ?? '', r.e.score.gross_error ? 'yes' : 'no', r.s.gross_error ? 'yes' : 'no',
+        ...ids.flatMap((id) => [orig[id] ?? '', r.answers[id] ?? '']),
+        changed, r.e.created_at, r.e.model, r.e.provenance?.transcript_hash ?? '', r.e.provenance?.checklist_hash ?? '',
+      ]
+        .map(cell)
         .join(';'),
     );
   }
-  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }); // BOM so Excel reads Cyrillic
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }); // BOM so Excel reads Cyrillic
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `cqa-results-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/** Judge A alone vs judge B alone vs the final answer, on the same labelled cells. */
+function judgeBlock(acc) {
+  const { judge, adj } = acc;
+  if (!judge.final.n) {
+    return '<p class="muted dash-sub">Сравнение судей появится для оценок, сделанных двумя судьями (режимы ai_eval или ensemble).</p>';
+  }
+  const pct = (x) => (x.n ? fmt((x.ok / x.n) * 100, 0) + '%' : '—');
+  return `<table class="grid compact judge-table">
+      <thead><tr><th>Кто отвечал</th><th class="r">Совпадений с эталоном</th></tr></thead>
+      <tbody>
+        <tr><td>Только судья A</td><td class="r">${pct(judge.judge_a)}</td></tr>
+        <tr><td>Только судья B</td><td class="r">${pct(judge.judge_b)}</td></tr>
+        <tr><td><b>Итог: два судьи и арбитр</b></td><td class="r"><b>${pct(judge.final)}</b></td></tr>
+      </tbody></table>
+    <p class="muted dash-sub">${judge.final.n} оценок критериев. Судьи разошлись в ${adj.disagreements}: итог верен в ${adj.finalRight}, судья A был прав в ${adj.aRight}, судья B в ${adj.bRight}.
+      Оба судьи согласились, но ошиблись: ${adj.sharedWrong}.</p>`;
+}
+
+function labelSource(ref) {
+  if (ref.status === 'human') {
+    return `Эталон: разметка проверяющих вслепую (${(ref.reviewers || []).length} чел., ${Object.keys(ref.labels || {}).length} диалогов). Спорных ячеек, исключённых из расчёта: ${(ref.disputed || []).length}.`;
+  }
+  if (ref.status === 'draft') return 'Эталон: черновая разметка, подготовленная с помощью ИИ и не проверенная людьми. Для честной оценки разметьте диалоги вслепую на странице «Разметка».';
+  return 'Эталонной разметки пока нет.';
 }
 
 const fmt = (x, d = 1) => (x === null || x === undefined || Number.isNaN(x) ? '—' : String(Math.round(x * 10 ** d) / 10 ** d).replace('.', ','));

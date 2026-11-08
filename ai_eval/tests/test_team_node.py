@@ -91,3 +91,24 @@ def test_result_maps_back_to_scoring_answers_and_message_indices() -> None:
     assert by_id["c04"]["answer"] == 20
     assert by_id["c08"]["answer"] == "no"
     assert "Здравствуйте" not in json.dumps(payload["prompt"])
+
+
+def test_each_judges_own_answer_is_returned_by_role() -> None:
+    # judge A says yes, judge B says no, the adjudicator decides yes: per-judge accuracy needs all three
+    a = [_judgment("c01", "applicable", True), _judgment("c02", "not_applicable", None)]
+    b = [_judgment("c01", "applicable", False), _judgment("c02", "not_applicable", None)]
+    adj = [_judgment("c01", "applicable", True)]
+    result = EvaluationResult(
+        conversation_id="p1-ru-001",
+        checklist_version_id="cqa-default-v1",
+        status=EvaluationStatus.completed,
+        criterion_results=[adj[0], a[1]],
+        judge_runs=[_run(JudgeRole.judge_a, a), _run(JudgeRole.judge_b, b), _run(JudgeRole.adjudicator, adj)],
+        disputed_criterion_ids=["c01"],
+        unresolved_criterion_ids=[],
+        usage=UsageSummary(provider_request_count=3, usage_known=False),
+    )
+    payload = to_team_result(CHECKLIST, {"transcript": [{"msg_index": 9, "timestamp": "01:15", "speaker": "operator", "text": "x"}]}, result)
+    by_id = {item["criterion_id"]: item for item in payload["criteria"]}
+    assert by_id["c01"]["judge_answers"] == {"judge_a": "yes", "judge_b": "no", "adjudicator": "yes"}
+    assert by_id["c02"]["judge_answers"] == {"judge_a": "na", "judge_b": "na"}

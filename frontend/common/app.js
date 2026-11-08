@@ -8,6 +8,7 @@ import * as checklist from '../checklist/editor.js';
 import * as appeals from '../appeals/reviewer.js';
 import * as analytics from '../analytics/dashboard.js';
 import * as operators from '../operators/operators.js';
+import * as labeling from '../labeling/labeling.js';
 
 const routes = [
   [/^#\/conversations\/([^?]+)$/, 'conversations', (m, q) => card.render(app(), { id: decodeURIComponent(m[1]), focus: q.get('c'), msg: q.get('m') })],
@@ -16,6 +17,8 @@ const routes = [
   [/^#\/analytics$/, 'analytics', () => analytics.render(app())],
   [/^#\/operators\/([^?]+)$/, 'operators', (m) => operators.render(app(), { name: decodeURIComponent(m[1]) })],
   [/^#\/operators$/, 'operators', () => operators.render(app())],
+  [/^#\/labeling\/([^?]+)$/, 'labeling', (m) => labeling.render(app(), { id: decodeURIComponent(m[1]) })],
+  [/^#\/labeling$/, 'labeling', () => labeling.render(app())],
   [/^#?\/?(conversations)?$/, 'conversations', () => conversations.render(app())],
 ];
 

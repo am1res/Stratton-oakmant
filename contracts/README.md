@@ -121,11 +121,15 @@ stores it in `evaluation.final`. The card shows `score` (original), the appeal d
 | GET | `/api/checklists/current` | the active checklist |
 | GET | `/api/checklists` | all saved versions |
 | PUT | `/api/checklists/current` | save a new version (validates; bumps `version`) |
-| POST | `/api/evaluate` | `{conversation_id}` → Evaluation |
-| POST | `/api/evaluate/batch` | `{conversation_ids?}` → `{job_id}`; all when omitted |
-| GET | `/api/jobs/:id` | `{done, total, errors, status}` |
+| POST | `/api/evaluate` | `{conversation_id, fresh?}` → Evaluation. After a checklist edit, criteria whose definition did not change keep their answer (`reused_from`, no model call); `fresh: true` re-asks everything. Every evaluation has `provenance` (transcript/checklist hashes, mode, models, prompt and app version, fresh vs reused criteria) |
+| POST | `/api/evaluate/batch` | `{conversation_ids?, skip_done?, fresh?}` → job; all when omitted. Jobs are saved to `storage/jobs` after every conversation |
+| GET | `/api/jobs/:id` | `{done, total, completed, errors, status}`; status `running` / `done` / `interrupted` |
+| GET | `/api/jobs?status=interrupted` | jobs stopped by a server restart |
+| POST | `/api/jobs/:id/resume` | continue an interrupted job; conversations with a saved result are not sent again |
+| GET | `/api/labels?reviewer=` | blind labeling: only that reviewer's own labels, plus label counts per reviewer |
+| PUT | `/api/labels/:conversation_id` | `{reviewer, answers, note?}` one reviewer's labels for one conversation |
 | GET | `/api/evaluations?conversation_id=` | evaluations, newest first; `?lite=1` drops the prompt text (analytics) |
-| GET | `/api/reference` | our reference labels `{status, labels}` from `data/ground_truth.dev.json` (AI-accuracy panel only, never used for grading) |
+| GET | `/api/reference` (human labels first) | our reference labels `{status, labels}` from `data/ground_truth.dev.json` (AI-accuracy panel only, never used for grading) |
 | GET | `/api/evaluations/:id` | one evaluation |
 | POST | `/api/appeals` | `{evaluation_id, criterion_id, comment}` |
 | GET | `/api/appeals?status=open` | appeals list |

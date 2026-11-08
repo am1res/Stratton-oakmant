@@ -114,6 +114,7 @@ def to_team_result(
                 "confidence": confidence,
                 "agreement": agreement,
                 "votes": _votes(judgment.criterion_id, judges, answer),
+                "judge_answers": _judge_answers(judgment.criterion_id, judges),
                 "needs_human_review": judgment.needs_human_review,
             }
         )
@@ -220,6 +221,20 @@ def _judge_answer(kind: str | None, judgment: CriterionJudgment | None) -> Any:
     if kind in ("binary", "flag"):
         return "yes" if judgment.answer is True else "no" if judgment.answer is False else None
     return judgment.answer
+
+
+def _judge_answers(criterion_id: str, judges: dict[str, dict[str, CriterionJudgment]]) -> dict[str, Any]:
+    """Each role's own answer, keyed by role, so per-judge accuracy can be measured later."""
+    out: dict[str, Any] = {}
+    for role in ("judge_a", "judge_b", "adjudicator"):
+        judgment = judges.get(role, {}).get(criterion_id)
+        if judgment is None:
+            continue
+        if judgment.applicability is Applicability.not_applicable:
+            out[role] = "na"
+        elif judgment.applicability is Applicability.applicable:
+            out[role] = "yes" if judgment.answer is True else "no" if judgment.answer is False else judgment.answer
+    return out
 
 
 def _votes(criterion_id: str, judges: dict[str, dict[str, CriterionJudgment]], final: Any) -> list[Any]:

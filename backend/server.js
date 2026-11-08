@@ -234,19 +234,70 @@ app.post('/api/checklists/reset', wrap(async (req, res) => {
 }));
 
 // ---------------- evaluations ----------------
-async function evaluateOne(id) {
-  const ev = await evaluateConversation(await currentChecklist(), getConv(id));
+async function latestEvaluation(id) {
+  const list = (await store.list('evaluations')).filter((e) => e.conversation_id === id);
+  return list.sort((a, b) => b.created_at.localeCompare(a.created_at))[0] || null;
+}
+
+/**
+ * Evaluate one conversation with the current checklist. After a checklist edit, criteria whose
+ * definition did not change keep their earlier answer (no model call; a weight-only edit costs
+ * nothing). fresh=true asks the models about every criterion.
+ */
+async function evaluateOne(id, { fresh = false } = {}) {
+  const conv = getConv(id);
+  const ev = await evaluateConversation(await currentChecklist(), conv, { previous: fresh ? null : await latestEvaluation(id), fresh });
   return store.put('evaluations', ev.id, ev);
 }
 
-app.post('/api/evaluate', wrap(async (req, res) => res.json(await evaluateOne(req.body.conversation_id))));
+app.post('/api/evaluate', wrap(async (req, res) => res.json(await evaluateOne(req.body.conversation_id, { fresh: !!req.body.fresh }))));
 
+// Batch jobs are saved to storage/jobs after every conversation, so a server restart does not lose
+// progress. A job that was running when the server stopped is marked "interrupted" at startup and
+// can be resumed: only conversations without a saved result are sent again.
 const jobs = new Map();
+const saveJob = (job) => store.put('jobs', job.id, job).catch((e) => console.warn(`[jobs] save failed: ${e.message}`));
+
+function runJob(job, opts = {}) {
+  jobs.set(job.id, job);
+  const queue = job.ids.filter((id) => !job.completed.includes(id) && !job.errors.some((e) => e.conversation_id === id));
+  const worker = async () => {
+    while (queue.length) {
+      const id = queue.shift();
+      try {
+        job.evaluation_ids.push((await evaluateOne(id, opts)).id);
+        job.completed.push(id);
+      } catch (e) {
+        job.errors.push({ conversation_id: id, error: e.message });
+      }
+      job.done++;
+      job.updated_at = new Date().toISOString();
+      await saveJob(job);
+    }
+  };
+  Promise.all(Array.from({ length: config.llm.concurrency }, worker)).then(async () => {
+    job.status = 'done';
+    job.finished_at = new Date().toISOString();
+    await saveJob(job);
+  });
+  return job;
+}
+
+async function markInterruptedJobs() {
+  for (const job of await store.list('jobs').catch(() => [])) {
+    if (job.status !== 'running') continue;
+    job.status = 'interrupted';
+    job.interrupted_at = new Date().toISOString();
+    await saveJob(job);
+    console.warn(`[jobs] ${job.id} was interrupted by a restart: ${job.completed?.length || 0}/${job.total} done, can be resumed`);
+  }
+}
+
 app.post('/api/evaluate/batch', wrap(async (req, res) => {
   let ids = req.body?.conversation_ids?.length ? req.body.conversation_ids : [...conversations.keys()];
   // skip_done (ported from the Django branch): don't pay again for conversations that already have
   // an evaluation under the CURRENT checklist version. After a criterion change the version goes up,
-  // so everything is evaluated again.
+  // so everything is evaluated again (unchanged criteria reuse their answers, see evaluateOne).
   let skipped = 0;
   if (req.body?.skip_done) {
     const version = (await currentChecklist()).version;
@@ -255,28 +306,41 @@ app.post('/api/evaluate/batch', wrap(async (req, res) => {
     ids = ids.filter((id) => !done.has(id));
     skipped = before - ids.length;
   }
-  const job = { id: `job_${Date.now()}`, total: ids.length, done: 0, skipped, errors: [], status: ids.length ? 'running' : 'done', evaluation_ids: [] };
-  jobs.set(job.id, job);
-  const queue = [...ids];
-  const worker = async () => {
-    while (queue.length) {
-      const id = queue.shift();
-      try {
-        job.evaluation_ids.push((await evaluateOne(id)).id);
-      } catch (e) {
-        job.errors.push({ conversation_id: id, error: e.message });
-      }
-      job.done++;
-    }
+  const now = new Date().toISOString();
+  const job = {
+    id: `job_${Date.now()}`, ids, total: ids.length, done: 0, skipped, completed: [], errors: [], evaluation_ids: [],
+    status: ids.length ? 'running' : 'done', fresh: !!req.body?.fresh, created_at: now, updated_at: now,
   };
-  Promise.all(Array.from({ length: config.llm.concurrency }, worker)).then(() => (job.status = 'done'));
+  await saveJob(job);
+  if (ids.length) runJob(job, { fresh: job.fresh });
+  else jobs.set(job.id, job);
   res.json(job);
 }));
 
+app.get('/api/jobs', wrap(async (req, res) => {
+  let list = await store.list('jobs').catch(() => []);
+  for (const j of list) if (jobs.has(j.id)) Object.assign(j, jobs.get(j.id));
+  if (req.query.status) list = list.filter((j) => j.status === req.query.status);
+  res.json(list.sort((a, b) => b.created_at.localeCompare(a.created_at)).map(({ ids, ...j }) => j));
+}));
+
 app.get('/api/jobs/:id', wrap(async (req, res) => {
-  const job = jobs.get(req.params.id);
+  const job = jobs.get(req.params.id) || (await store.get('jobs', req.params.id));
   if (!job) throw httpError(404, 'job not found');
   res.json(job);
+}));
+
+// Resume an interrupted job: conversations that already have a saved result are not sent again.
+app.post('/api/jobs/:id/resume', wrap(async (req, res) => {
+  const job = await store.get('jobs', req.params.id);
+  if (!job) throw httpError(404, 'job not found');
+  if (job.status !== 'interrupted') throw httpError(409, `job is ${job.status}, only an interrupted job can be resumed`);
+  job.status = 'running';
+  job.resumed_at = new Date().toISOString();
+  job.errors = []; // failed ones get another try
+  job.done = job.completed.length;
+  await saveJob(job);
+  res.json(runJob(job, { fresh: job.fresh }));
 }));
 
 app.get('/api/evaluations', wrap(async (req, res) => {
@@ -300,6 +364,8 @@ app.post('/api/appeals', wrap(async (req, res) => {
   const crit = ev.criteria.find((c) => c.criterion_id === criterion_id);
   if (!crit) throw httpError(400, 'criterion not in this evaluation');
   if (!comment?.trim()) throw httpError(400, 'comment is required');
+  const open = (await store.list('appeals')).find((a) => a.evaluation_id === evaluation_id && a.criterion_id === criterion_id && a.status === 'open');
+  if (open) throw httpError(409, 'По этому критерию уже есть открытая апелляция. Дождитесь решения проверяющего.');
   const now = new Date();
   const appeal = {
     id: `ap_${now.getTime()}`,
@@ -343,6 +409,8 @@ app.post('/api/appeals/:id/decide', wrap(async (req, res) => {
   const appeal = await store.get('appeals', req.params.id);
   if (!appeal) throw httpError(404, 'appeal not found');
   if (!req.body.reason?.trim()) throw httpError(400, 'reason is required');
+  // Two reviewers on the same appeal: the second one must not silently overwrite the first.
+  if (appeal.reviewer_decision) throw httpError(409, 'Эту апелляцию уже решил другой проверяющий. Обновите страницу, чтобы увидеть решение.');
   const ev = await store.get('evaluations', appeal.evaluation_id);
   const crit = ev.checklist_snapshot.criteria.find((c) => c.id === appeal.criterion_id);
   const answer = normalizeAnswer(crit, req.body.answer);
@@ -426,13 +494,63 @@ app.delete('/api/demo/arrange', wrap(async (req, res) => {
   res.json(saved ? { active: true, source: saved.source } : { active: false });
 }));
 
-// Reference labels (our own ground truth) for the "AI accuracy" panel. Not used for grading.
+// ---------------- reference labels ----------------
+// Human labels from the blind labeling page (storage/labels/<conversation>__<reviewer>.json) take
+// priority over the draft file data/ground_truth.dev.json. Where two reviewers disagree on a
+// criterion, that cell is reported as disputed and left out of accuracy. Never used for grading.
+const safeName = (s) => String(s || '').trim().slice(0, 40);
+
+app.get('/api/labels', wrap(async (req, res) => {
+  const reviewer = safeName(req.query.reviewer);
+  const all = await store.list('labels');
+  // Blind: a reviewer sees only their own labels, plus how many conversations each has labeled.
+  res.json({
+    mine: reviewer ? all.filter((l) => l.reviewer === reviewer) : [],
+    counts: Object.fromEntries([...new Set(all.map((l) => l.reviewer))].map((r) => [r, all.filter((l) => l.reviewer === r).length])),
+  });
+}));
+
+app.put('/api/labels/:conversation_id', wrap(async (req, res) => {
+  const reviewer = safeName(req.body?.reviewer);
+  if (!reviewer) throw httpError(400, 'reviewer name is required');
+  getConv(req.params.conversation_id);
+  const checklist = await currentChecklist();
+  const answers = {};
+  for (const c of checklist.criteria) {
+    if (req.body.answers?.[c.id] === undefined || req.body.answers[c.id] === '') throw httpError(400, `no answer for ${c.id}`);
+    answers[c.id] = normalizeAnswer(c, req.body.answers[c.id]);
+  }
+  const label = {
+    conversation_id: req.params.conversation_id, reviewer, answers, note: String(req.body.note || '').slice(0, 500),
+    checklist_version: checklist.version, saved_at: new Date().toISOString(),
+  };
+  res.json(await store.put('labels', `${label.conversation_id}__${reviewer}`, label));
+}));
+
 app.get('/api/reference', wrap(async (req, res) => {
+  const human = await store.list('labels').catch(() => []);
+  if (human.length) {
+    const byConv = {};
+    for (const l of human) (byConv[l.conversation_id] ||= []).push(l);
+    const labels = {};
+    const disputed = [];
+    for (const [id, list] of Object.entries(byConv)) {
+      const answers = {};
+      const ids = [...new Set(list.flatMap((l) => Object.keys(l.answers)))];
+      for (const cid of ids) {
+        const vals = [...new Set(list.filter((l) => cid in l.answers).map((l) => JSON.stringify(l.answers[cid])))];
+        if (vals.length === 1) answers[cid] = JSON.parse(vals[0]);
+        else disputed.push({ conversation_id: id, criterion_id: cid, answers: list.map((l) => ({ reviewer: l.reviewer, answer: l.answers[cid] })) });
+      }
+      labels[id] = { answers, reviewers: list.map((l) => l.reviewer) };
+    }
+    return res.json({ status: 'human', reviewers: [...new Set(human.map((l) => l.reviewer))], labels, disputed });
+  }
   try {
     const gt = JSON.parse(await fs.readFile(path.join(ROOT, 'data', 'ground_truth.dev.json'), 'utf-8'));
-    res.json({ status: gt._status || 'draft', labels: gt.labels || {} });
+    res.json({ status: gt._status || 'draft', labels: gt.labels || {}, disputed: [] });
   } catch {
-    res.json({ status: 'none', labels: {} });
+    res.json({ status: 'none', labels: {}, disputed: [] });
   }
 }));
 
@@ -455,9 +573,10 @@ app.use(express.static(path.join(ROOT, 'frontend'), {
   setHeaders(res) { res.setHeader('Cache-Control', 'no-cache'); },
 }));
 
-export { app, reloadConversations };
+export { app, reloadConversations, markInterruptedJobs };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.join(ROOT, 'backend', 'server.js')) {
   await reloadConversations().catch((e) => console.error(`[data] could not load conversations: ${e.message}`));
+  await markInterruptedJobs();
   app.listen(config.port, () => console.log(`CQA running on http://localhost:${config.port}  (mode: ${config.llm.mode}, model: ${modelLabel()})`));
 }

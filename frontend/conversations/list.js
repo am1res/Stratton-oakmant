@@ -177,6 +177,34 @@ export async function render(el) {
   if (activeJob) poll();
   showFailures();
 
+  // A batch interrupted by a server restart: offer to continue without paying again for finished ones.
+  if (!activeJob) {
+    api
+      .jobs('interrupted')
+      .then((list) => {
+        const j = list[0];
+        if (!j || currentPath() !== path) return;
+        const box = el.querySelector('#failures');
+        box.insertAdjacentHTML(
+          'afterbegin',
+          `<div class="fail-box resume-box" role="status"><p><strong>Пакетная оценка прервалась</strong> (перезапуск сервера): готово ${j.completed?.length ?? j.done} из ${j.total}.</p>
+           <p class="muted">Уже оценённые диалоги повторно не отправляются.</p><p><button data-resume>Продолжить оценку</button></p></div>`,
+        );
+        box.querySelector('[data-resume]').onclick = async (e) => {
+          e.target.disabled = true;
+          try {
+            activeJob = await api.resumeJob(j.id);
+            box.querySelector('.resume-box')?.remove();
+            poll();
+          } catch (err) {
+            text.textContent = humanError(err);
+            e.target.disabled = false;
+          }
+        };
+      })
+      .catch(() => {});
+  }
+
   el.querySelector('#upload').onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;

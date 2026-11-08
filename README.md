@@ -57,6 +57,16 @@ backend/data/source.js     normalize transcript, keep signed audio URLs on the s
 
 Only the human operator is graded. Bot and system lines are context. The checklist is data: names, rules, scales, examples, and N/A rules are read from the checklist file and sent to the models. The evaluator does not hardcode the eight official criteria.
 
+### Trust and audit
+
+- **Run record on every evaluation** (card → *Как получена эта оценка*): transcript and checklist fingerprints, mode and models, prompt and app version, which criteria were asked fresh and which were carried over, number of model calls. Test evaluations (`LLM_MOCK=1`) are marked and kept out of accuracy and marked in exports.
+- **Only changed criteria are re-asked.** After a checklist edit, a criterion whose definition (everything except weight and section) did not change keeps its earlier answer, with a link to where it came from. A weight-only edit is recalculated with no model call. **Полностью заново** re-asks everything. A plain re-evaluation with an unchanged checklist always runs fresh.
+- **Per-judge accuracy.** Each criterion stores judge A's, judge B's and the arbiter's own answers, so *Аналитика* and `npm run eval` show A alone vs B alone vs the final answer on the reference labels, plus how often the arbiter fixed a disagreement and how often both judges agreed but were wrong.
+- **Blind labeling** (*Разметка*): reviewers grade conversations without seeing the AI's answers or each other's labels. Cells where two reviewers agree become the reference; disagreements are listed as disputed and left out. Human labels replace the draft `data/ground_truth.dev.json` in the accuracy panel.
+- **Batch jobs survive a restart.** Progress is saved after every conversation; an interrupted job can be resumed from the list without paying again for finished conversations.
+- **Reviewer conflicts are refused**: one open appeal per criterion, and a decided appeal cannot be overwritten by a second reviewer.
+- **CSV export keeps the original AI result** (`*_ai`) next to the reviewed one (`*_final`), with fingerprints, and protects against spreadsheet formula injection.
+
 ### What the pages do
 
 - **Диалоги.** List of conversations, filters, batch evaluation. The bar under a row is the checklist: width is weight, fill is points earned, hatching is N/A.
@@ -64,6 +74,7 @@ Only the human operator is graded. Bot and system lines are context. The checkli
 - **Операторы.** Average score, early-versus-late change, weakest criterion. The organizers’ export has no operator names and no chat dates, so those fields are demo values (`data/demo_operators.json`) unless the record already has them. `DEMO_OPERATORS=0` turns the demo names off. Scores stay real.
 - **Аналитика.** Where points are lost, the score histogram, language and channel comparison, gross errors, and agreement with the reference labels in `data/ground_truth.dev.json`.
 - **Апелляции.** A reviewer compares the original answer, the operator’s appeal, and an optional model suggestion, then decides.
+- **Разметка.** Blind labeling for the reference set, see above.
 - **Чек-лист.** Edit weights, rules, scales, and examples. Saving creates a new version. Older versions can be restored. The next evaluation uses the current version.
 
 The screen shows the score, the explanation, and the evidence. It does not show model ids, token cost, or the raw prompt.
