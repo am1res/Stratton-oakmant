@@ -14,6 +14,7 @@ import { analyzeEmotion, readEmotion } from '../data/emotion.js';
 import { buildMessages, responseSchema } from './prompt.js';
 import { chatJson, costUsd } from './client.js';
 import { normalizeAnswer, computeScore } from '../../shared/scoring.js';
+import { buildProvenance, reusableCriteria } from '../provenance.js';
 
 const MAX_ATTEMPTS = 3;
 
@@ -124,12 +125,13 @@ async function ensemble(checklist, conv, opts) {
   const results = criteria.map((c) => {
     const x = a.byId[c.id];
     const y = b.byId[c.id];
-    if (x.answer === y.answer) return { ...x, ...mergeEvidence(x, y), confidence: 1, agreement: 'agreed', votes: [x.answer, y.answer] };
+    const judge_answers = { judge_a: x.answer, judge_b: y.answer };
+    if (x.answer === y.answer) return { ...x, ...mergeEvidence(x, y), confidence: 1, agreement: 'agreed', votes: [x.answer, y.answer], judge_answers };
     if (arb) {
       const z = arb.byId[c.id];
-      return { ...z, confidence: 0.5, agreement: 'arbitrated', votes: [x.answer, y.answer, z.answer] };
+      return { ...z, confidence: 0.5, agreement: 'arbitrated', votes: [x.answer, y.answer, z.answer], judge_answers: { ...judge_answers, adjudicator: z.answer } };
     }
-    return { ...x, confidence: 0.5, agreement: 'arbiter_failed', votes: [x.answer, y.answer] };
+    return { ...x, confidence: 0.5, agreement: 'arbiter_failed', votes: [x.answer, y.answer], judge_answers };
   });
   return { results, usage: sumUsage([a, b, ...(arb ? [arb] : [])]), prompt: a.prompt };
 }
@@ -201,13 +203,55 @@ export async function runCriteria(checklist, conv, opts = {}) {
   return { results: criteria.map((c) => vote(runs, c)), usage: sumUsage(runs), prompt: runs[0].prompt };
 }
 
-/** Full evaluation of a conversation with a checklist. */
-export async function evaluateConversation(checklist, conv) {
-  const toneLabelsForJudges = await toneLabels(conv);
-  const { results, usage, prompt, model } = await runCriteria(checklist, conv, { toneLabels: toneLabelsForJudges });
+/** Models the current settings will use, as one comparable string (part of the run record). */
+export function configuredModels() {
+  const c = config.llm;
+  if (c.mock) return 'mock';
+  if (c.mode === 'ai_eval') return `judge_a=${c.judges.a}, judge_b=${c.judges.b}, adjudicator=${c.judges.adjudicator}`;
+  if (c.mode === 'ensemble') return `A=${c.model}, B=${c.modelB || c.model}, arbiter=${c.modelArbiter || c.model}`;
+  return `${c.model}${c.votes > 1 ? ` x${c.votes}` : ''}`;
+}
+
+const promptVersionOf = (prompt) => {
+  const first = String(prompt?.[0]?.content || '').split('\n')[0].trim();
+  return /^cqa-[\w.-]+$/.test(first) ? first : null;
+};
+
+/**
+ * Full evaluation of a conversation with a checklist.
+ * @param opts.previous  latest earlier evaluation of this conversation (enables reuse after a checklist edit)
+ * @param opts.fresh     true = ignore earlier answers, ask the models about every criterion
+ */
+export async function evaluateConversation(checklist, conv, opts = {}) {
+  const current = { mode: config.llm.mock ? 'mock' : config.llm.mode, models: configuredModels(), mock: config.llm.mock };
+  const reuseIds = opts.fresh ? [] : reusableCriteria(checklist, conv, opts.previous, current);
+  const freshIds = checklist.criteria.map((c) => c.id).filter((id) => !reuseIds.includes(id));
+
+  let results = [];
+  let usage = { input_tokens: 0, output_tokens: 0, calls: 0, cost_usd: 0 };
+  let prompt = [];
+  let model = null;
+  if (freshIds.length) {
+    const toneLabelsForJudges = await toneLabels(conv);
+    const run = await runCriteria(checklist, conv, {
+      toneLabels: toneLabelsForJudges,
+      ...(reuseIds.length ? { criteriaIds: freshIds } : {}),
+    });
+    ({ results, usage, prompt, model } = run);
+  }
+  // Answers carried over from the previous evaluation: their definition did not change.
+  const prevById = Object.fromEntries((opts.previous?.criteria || []).map((r) => [r.criterion_id, r]));
+  for (const id of reuseIds) {
+    const { points, effective_weight, ...r } = prevById[id];
+    results.push({ ...r, reused_from: { evaluation_id: opts.previous.id, created_at: opts.previous.created_at, checklist_version: opts.previous.checklist_version } });
+  }
+  const order = checklist.criteria.map((c) => c.id);
+  results.sort((x, y) => order.indexOf(x.criterion_id) - order.indexOf(y.criterion_id));
+
   const answers = Object.fromEntries(results.map((r) => [r.criterion_id, r.answer]));
   const score = computeScore(checklist, answers);
   const now = new Date();
+  const promptVersion = promptVersionOf(prompt) || (freshIds.length ? null : opts.previous?.provenance?.prompt_version);
   return {
     id: `ev_${now.getTime()}_${conv.conversation_id}`,
     conversation_id: conv.conversation_id,
@@ -215,8 +259,8 @@ export async function evaluateConversation(checklist, conv) {
     checklist_id: checklist.id,
     checklist_version: checklist.version,
     checklist_snapshot: checklist,
-    model: model || (config.llm.mock ? 'mock' : config.llm.model),
-    mode: config.llm.mode,
+    model: model || (freshIds.length ? current.models : opts.previous?.model || current.models),
+    mode: current.mode === 'mock' ? config.llm.mode : current.mode,
     votes: config.llm.votes,
     created_at: now.toISOString(),
     criteria: results.map((r) => ({
@@ -226,7 +270,8 @@ export async function evaluateConversation(checklist, conv) {
     })),
     score: { total: score.total, max: score.max, gross_error: score.gross_error, sections: score.sections },
     usage,
-    prompt: prompt.map((m) => `### ${m.role}\n${m.content}`).join('\n\n'),
+    prompt: prompt.length ? prompt.map((m) => `### ${m.role}\n${m.content}`).join('\n\n') : opts.previous?.prompt || '',
+    provenance: buildProvenance(checklist, conv, { ...current, promptVersion, reused: reuseIds, freshIds }),
     final: null,
   };
 }

@@ -47,7 +47,8 @@ export async function render(el, { id, focus, msg, evaluationId }) {
       <span class="muted">${conv.operator ? `<a href="#/operators/${encodeURIComponent(conv.operator)}">${esc(conv.operator)}</a>, ` : ''}${conv.date ? `${esc(conv.date.slice(8, 10))}.${esc(conv.date.slice(5, 7))}.${esc(conv.date.slice(0, 4))}, ` : ''}${esc(conv.language)}, ${esc(CHANNEL[conv.channel] || conv.channel)}, ${conv.transcript.length} реплик</span>
       ${history}
       <button class="ghost" id="print" title="Отчёт по оценке: печать или сохранение в PDF">Печать / PDF</button>
-      <button id="run">${ev ? 'Оценить заново' : 'Оценить диалог'}</button>
+      ${ev ? '<button class="ghost" id="run-fresh" title="Не переносить ответы из прошлой оценки: модель заново оценит все критерии">Полностью заново</button>' : ''}
+      <button id="run" title="${ev ? 'Если чек-лист менялся, неизменённые критерии переносятся без обращения к модели' : ''}">${ev ? 'Оценить заново' : 'Оценить диалог'}</button>
     </div>
     <div class="card-layout">
       <section class="sheet transcript-wrap" aria-label="Транскрипт">
@@ -109,7 +110,7 @@ export async function render(el, { id, focus, msg, evaluationId }) {
     result.innerHTML = `<section class="sheet state-box"><h2>Диалог ещё не оценён</h2>
       <p class="muted">Оценка занимает 10–30 секунд. Будет использована текущая версия чек-листа.</p>
       <p><button data-run>Оценить диалог</button></p></section>`;
-    result.querySelector('[data-run]').onclick = run;
+    result.querySelector('[data-run]').onclick = () => run();
   };
   const showRunning = () => {
     const started = Date.now();
@@ -129,16 +130,16 @@ export async function render(el, { id, focus, msg, evaluationId }) {
       <h2>Оценка не выполнена</h2>
       <p>${esc(humanError(err))}</p>
       <p><button data-run>Повторить оценку</button>${previous ? ' <button class="ghost" data-prev>Показать прошлую оценку</button>' : ''}</p></section>`;
-    result.querySelector('[data-run]').onclick = run;
+    result.querySelector('[data-run]').onclick = () => run();
     result.querySelector('[data-prev]')?.addEventListener('click', () => showResult(previous));
   };
 
-  async function run() {
+  async function run(opts = {}) {
     runBtn.disabled = true;
     runBtn.textContent = 'Оцениваю…';
     const stop = showRunning();
     try {
-      const fresh = await api.evaluate(id);
+      const fresh = await api.evaluate(id, { fresh: !!opts.fresh });
       stop();
       if (currentPath() !== path) return;
       refreshNav();
@@ -151,7 +152,8 @@ export async function render(el, { id, focus, msg, evaluationId }) {
       showFailed(err, ev);
     }
   }
-  runBtn.onclick = run;
+  runBtn.onclick = () => run();
+  el.querySelector('#run-fresh')?.addEventListener('click', () => run({ fresh: true }));
   el.querySelector('#print').onclick = () => {
     togglePrelude(true);
     el.querySelectorAll('details.prompt').forEach((d) => (d.open = false));
