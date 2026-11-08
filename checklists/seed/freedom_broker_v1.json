@@ -1,0 +1,101 @@
+{
+  "checklist": {
+    "name": "Freedom Broker Chat QA",
+    "description": "Operator performance in one client conversation (RU / KZ / EN)."
+  },
+  "version": {
+    "comment": "Initial configuration from CHECKLIST.MD",
+    "rounding": 2,
+    "clarifications": "NO vs N/A: NO = the action was required but was skipped or done wrong. N/A = the criterion does not apply under its stated condition.\nConsultation (C4) vs Dialogue management (C6): C4 measures whether the request was solved correctly and completely. C6 measures how clearly and consistently the operator communicated. Example: a clear answer to only one of two important questions can score high on C6 and partial on C4.\nOut of scope: the 3-minute first-response threshold, tags, and attachments are not part of the evaluation.",
+    "sections": [],
+    "criteria": [
+      {
+        "code": "C1",
+        "title": "Contact establishment",
+        "answer_type": "binary",
+        "weight": 10,
+        "na_allowed": false,
+        "na_condition": "",
+        "rule_text": "YES = in the first reply, the operator greeted the client in the client's language AND introduced themselves."
+      },
+      {
+        "code": "C2",
+        "title": "Needs identification",
+        "answer_type": "binary",
+        "weight": 15,
+        "na_allowed": true,
+        "na_condition": "The client gave enough information from the start.",
+        "rule_text": "YES = the operator used details already known AND clarified missing details before answering."
+      },
+      {
+        "code": "C3",
+        "title": "Identity verification",
+        "answer_type": "binary",
+        "weight": 20,
+        "na_allowed": true,
+        "na_condition": "The request did not require verification (e.g., a general question about tariffs).",
+        "rule_text": "YES = identity verification was confirmed before disclosing data or performing a protected action. NO = verification was required but is not confirmed in the chat."
+      },
+      {
+        "code": "C4",
+        "title": "Correct and complete consultation",
+        "answer_type": "scale",
+        "allowed_steps": [0, 5, 10, 15, 20],
+        "scale_descriptions": {
+          "20": "All essential questions are resolved, or a correct next step is given.",
+          "15": "The main question is resolved, but a secondary detail is missed.",
+          "10": "Part of the request is resolved, but an essential question remains open.",
+          "5": "Only a general hint is given, and the client still doesn't know how to proceed.",
+          "0": "There is no substantive answer, or the key recommendation is wrong."
+        },
+        "weight": 20,
+        "na_allowed": true,
+        "na_condition": "The chat ended before the client stated a request.",
+        "rule_text": "Rate the answer or the next step using the scale."
+      },
+      {
+        "code": "C5",
+        "title": "Empathy and client focus",
+        "answer_type": "binary",
+        "weight": 15,
+        "na_allowed": false,
+        "na_condition": "",
+        "rule_text": "YES = the operator was polite AND, if the client expressed dissatisfaction or described an inconvenience, responded to that specific problem."
+      },
+      {
+        "code": "C6",
+        "title": "Dialogue management, speed, literacy",
+        "answer_type": "scale",
+        "allowed_steps": [0, 4, 7, 10],
+        "scale_descriptions": {
+          "10": "Replies are clear and coherent. If there was an explicit wait, the operator warned the client.",
+          "7": "There is one noticeable lapse, but the client can understand and continue.",
+          "4": "The client has to re-ask because of wording or the order of replies.",
+          "0": "Incoherent or contradictory replies make the dialogue impossible to follow."
+        },
+        "weight": 15,
+        "na_allowed": false,
+        "na_condition": "",
+        "rule_text": "Rate clarity, order of replies, and warnings about waits using the scale."
+      },
+      {
+        "code": "C7",
+        "title": "Closing",
+        "answer_type": "binary",
+        "weight": 5,
+        "na_allowed": true,
+        "na_condition": "The chat broke off before the operator could close it.",
+        "rule_text": "YES = the operator summarized OR offered further help, AND said goodbye."
+      },
+      {
+        "code": "C8",
+        "title": "Critical violations",
+        "answer_type": "flag",
+        "weight": 0,
+        "na_allowed": false,
+        "na_condition": "",
+        "rule_text": "YES = at least one of these occurred: (a) insulting the client; (b) offering a paid service bypassing the company; (c) disclosing confidential information. NO = none of them occurred. Paid service bypassing the company (b): flag it if the operator suggests the client transfer money to them personally for investing, OR asks for the client's personal number to give a private paid consultation. The offer alone is enough; client agreement or an actual transfer is not required. If YES, name the violation type in the explanation."
+      }
+    ]
+  }
+}

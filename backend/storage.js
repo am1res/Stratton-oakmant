@@ -9,8 +9,11 @@ const safe = (id) => String(id).replace(/[^a-zA-Z0-9_.-]/g, '_');
 export async function put(collection, id, obj) {
   await fs.mkdir(dir(collection), { recursive: true });
   const file = path.join(dir(collection), `${safe(id)}.json`);
-  await fs.writeFile(`${file}.tmp`, JSON.stringify(obj, null, 2), 'utf-8');
-  await fs.rename(`${file}.tmp`, file);
+  // Unique temp name: parallel writes of the same id (e.g. 4 batch workers saving the default
+  // checklist at once) used to collide on one ".tmp" file and fail with ENOENT.
+  const tmp = `${file}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+  await fs.writeFile(tmp, JSON.stringify(obj, null, 2), 'utf-8');
+  await fs.rename(tmp, file);
   return obj;
 }
 

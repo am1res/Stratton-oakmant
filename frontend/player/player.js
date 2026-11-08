@@ -2,8 +2,9 @@
 // The audio streams through the backend proxy (/api/conversations/:id/audio), so the signed
 // link never reaches the browser. If the recording can't be played inline, we say so and offer
 // to open it in a new tab.
-// offset_sec = seconds since the first transcript line. If seeks land late or early on your
-// recordings, adjust OFFSET_SHIFT (recording starts later than the transcript → negative value).
+// offset_sec = seconds into the audio file (calls: from "recording started", with paused parts cut
+// out; see backend/data/source.js). On the DEV calls speech starts ~1-1.5 s after offset_sec, and
+// seek() starts 1 s early, so the start of the phrase is always heard. Adjust OFFSET_SHIFT if needed.
 import { esc } from '../common/api.js';
 
 const OFFSET_SHIFT = 0;

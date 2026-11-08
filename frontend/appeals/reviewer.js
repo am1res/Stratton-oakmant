@@ -37,7 +37,17 @@ export async function render(el) {
     const crit = ev.checklist_snapshot.criteria.find((c) => c.id === ap.criterion_id);
     const options = crit.type === 'scale' ? crit.scale.map((s) => s.value) : ['yes', 'no'];
     if (crit.na_allowed) options.push('na');
-    const frag = conv.transcript.filter((m) => (ap.original.evidence_msg_indices || []).includes(m.msg_index));
+    // Disputed fragment (ported from the Django branch): evidence lines with 2 lines of context
+    // around each, plus the range where a missing action was expected.
+    const key = new Set(ap.original.evidence_msg_indices || []);
+    const wanted = new Set();
+    for (const i of key) for (let j = i - 2; j <= i + 2; j++) wanted.add(j);
+    if (ap.original.checked_range) {
+      const [lo, hi] = ap.original.checked_range;
+      for (let j = lo; j <= hi; j++) wanted.add(j);
+    }
+    const frag = conv.transcript.filter((m) => wanted.has(m.msg_index));
+    const quotes = Object.fromEntries((ap.original.evidence || []).map((e) => [e.msg_index, e]));
     const label = (o) => (crit.type === 'flag' ? (o === 'yes' ? 'Есть нарушение' : 'Нет нарушения') : fmtAnswer(o));
 
     const node = document.createElement('article');
@@ -57,7 +67,12 @@ export async function render(el) {
         <div>
           <h4>Апелляция</h4>
           <p class="quote">${esc(ap.comment)}</p>
-          ${frag.map((m) => `<p style="font-size:13px"><span class="muted">#${m.msg_index} ${esc(SPEAKER[m.speaker] || m.speaker)}:</span> ${esc(m.text)}</p>`).join('')}
+          ${frag
+            .map(
+              (m, i) =>
+                `${i > 0 && m.msg_index - frag[i - 1].msg_index > 1 ? '<p class="muted frag-line">…</p>' : ''}<p class="frag-line ${key.has(m.msg_index) ? 'key' : 'context'}"><span class="muted">#${m.msg_index} ${esc(SPEAKER[m.speaker] || m.speaker)}:</span> ${esc(m.text)}${quotes[m.msg_index]?.proves ? ` <span class="muted">— ${esc(quotes[m.msg_index].proves)}</span>` : ''}</p>`,
+            )
+            .join('')}
         </div>
         <div>
           <h4>Второе мнение ИИ</h4>

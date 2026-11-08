@@ -30,6 +30,11 @@ export async function render(el) {
       <div class="crit-cols" aria-hidden="true"><span>ID</span><span>Критерий</span><span>Тип ответа</span><span>Вес</span><span>N/A</span><span></span></div>
       <div id="crits"></div>
     </section>
+    <details class="sheet sheet-pad" style="margin-top:16px" id="history">
+      <summary style="cursor:pointer">История версий (${versions.length}) — посмотреть и вернуть любую</summary>
+      <p class="muted" style="margin:8px 0">Восстановление копирует выбранную версию как новую. Старые версии и оценки, сделанные по ним, не меняются.</p>
+      <div class="versions">${versions.map((v) => versionRow(v, current)).join('')}</div>
+    </details>
     <details class="sheet sheet-pad" style="margin-top:16px">
       <summary class="muted" style="cursor:pointer">Общие правила для модели и сброс</summary>
       <label class="field" style="margin-top:12px">Общие правила (по одному на строку, применяются ко всем критериям)
@@ -147,6 +152,23 @@ export async function render(el) {
       e.target.disabled = false;
     }
   };
+  el.querySelectorAll('[data-restore]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const v = Number(b.dataset.restore);
+      if (dirty && !confirm('Несохранённые изменения пропадут. Продолжить?')) return;
+      if (!confirm(`Вернуть чек-лист версии ${v}? Он станет новой версией ${current.version + 1}, история сохранится.`)) return;
+      b.disabled = true;
+      try {
+        const saved = await api.restoreChecklist(v);
+        dirty = false;
+        await render(el);
+        el.querySelector('#status').innerHTML = `<span class="saved-note">Версия ${v} восстановлена как версия ${saved.version}. Новые оценки используют её.</span>`;
+      } catch (err) {
+        b.disabled = false;
+        el.querySelector('#status').innerHTML = `<span class="error">Не восстановлено. ${esc(err.message)}</span>`;
+      }
+    }),
+  );
   el.querySelector('#reset').onclick = async () => {
     if (!confirm('Вернуть исходный чек-лист? Будет создана новая версия, старые сохранятся.')) return;
     await api.resetChecklist();
@@ -187,6 +209,32 @@ function critHtml(c, i, sections, isOpen) {
       <div class="full"><button class="danger" data-act="delete">Удалить критерий</button></div>
     </div>
   </details>`;
+}
+
+/** One row of the version history: what differs from the current version, and a restore button. */
+function versionRow(v, current) {
+  const isCurrent = v.version === current.version;
+  const weightSum = v.criteria.filter((c) => c.type !== 'flag').reduce((s, c) => s + (Number(c.weight) || 0), 0);
+  const curById = Object.fromEntries(current.criteria.map((c) => [c.id, c]));
+  const vIds = new Set(v.criteria.map((c) => c.id));
+  const diff = [];
+  for (const c of v.criteria) {
+    const now = curById[c.id];
+    if (!now) diff.push(`есть ${c.id} «${c.name}»`);
+    else if (now.name !== c.name || now.weight !== c.weight || now.type !== c.type) {
+      diff.push(`${c.id}: ${now.name !== c.name ? `«${c.name}»` : ''}${now.weight !== c.weight ? ` вес ${c.weight}` : ''}${now.type !== c.type ? ` тип ${TYPES[c.type] || c.type}` : ''}`.trim());
+    }
+  }
+  for (const c of current.criteria) if (!vIds.has(c.id)) diff.push(`нет ${c.id} «${c.name}»`);
+  const when = v.saved_at ? new Date(v.saved_at).toLocaleString('ru-RU') : '';
+  const origin = v.restored_from ? `, копия версии ${v.restored_from}` : '';
+  return `<div class="version-row ${isCurrent ? 'current' : ''}">
+      <div><b>Версия ${v.version}</b>${isCurrent ? ' <span class="v pass">текущая</span>' : ''}
+        <span class="muted">${esc(when)}${origin}, критериев: ${v.criteria.length}, сумма весов: ${weightSum}</span>
+        ${!isCurrent ? `<div class="muted version-diff">${diff.length ? `Отличия от текущей: ${esc(diff.join('; '))}` : 'Критерии те же, что в текущей (могли отличаться правила и примеры)'}</div>` : ''}
+      </div>
+      ${isCurrent ? '' : `<button class="ghost" data-restore="${v.version}">Восстановить</button>`}
+    </div>`;
 }
 
 const lines = (v) => v.split('\n').map((s) => s.trim()).filter(Boolean);

@@ -67,6 +67,14 @@ function criterionBlock(c) {
   return lines.join('\n');
 }
 
+// Ensemble mode (LLM_MODE=ensemble), ported from the Django branch: two evaluators use different
+// methods so their mistakes are less alike; an arbiter decides only the criteria they disagree on.
+export const ROLE_INSTRUCTIONS = {
+  A: '## Метод оценщика A: от правила\nИди по критериям по очереди. Разбей правило критерия на отдельные условия и проверь каждое условие по транскрипту, прежде чем выбрать ответ.',
+  B: '## Метод оценщика B: от доказательств\nСначала прочитай весь транскрипт и выпиши для себя все значимые действия оператора: приветствие и представление, уточняющие вопросы, проверку личности, ответы, предупреждения об ожидании, завершение, всё рискованное. Затем реши каждый критерий только по этим заметкам. Действие засчитывается, только если оно видно в транскрипте.',
+  ARBITER: '## Ты — решающий оценщик\nДва независимых оценщика разошлись по критериям из раздела «Дополнительно». Перечитай транскрипт сам, проверь позицию каждого по правилу и по репликам, на которые они ссылаются, и прими решение. Можно выбрать ответ, который не выбрал ни один из них, если этого требует правило. В "explanation" скажи, чья позиция верна и почему.',
+};
+
 export function formatTranscript(conv) {
   return conv.transcript.map((m) => `#${m.msg_index} [${m.timestamp}] ${m.speaker}: ${m.text}`).join('\n');
 }
@@ -75,7 +83,7 @@ export function formatTranscript(conv) {
  * @param opts.criteriaIds  evaluate only these criteria (used for the appeal second opinion)
  * @param opts.extraNote    extra context appended to the user message (e.g. the appeal comment)
  */
-export function buildMessages(checklist, conv, opts = {}) {
+export function buildMessages(checklist, conv, opts = {}) { // opts.role: 'A' | 'B' | 'ARBITER' (ensemble mode)
   const criteria = opts.criteriaIds ? checklist.criteria.filter((c) => opts.criteriaIds.includes(c.id)) : checklist.criteria;
   const lang = opts.explanationLanguage || 'русском';
 
@@ -93,11 +101,13 @@ export function buildMessages(checklist, conv, opts = {}) {
     '- Для КАЖДОГО критерия сначала кратко рассуждай в поле "reasoning" по шагам «Порядок решения», затем дай "answer".',
     '- "answer": строго одно из допустимых значений критерия (для шкалы — число строкой, например "15").',
     '- "evidence_msg_indices": номера реплик (#), которые подтверждают ответ. Для N/A — реплики, показывающие условие неприменимости.',
+    '- "evidence": для каждой реплики из evidence_msg_indices — {"msg_index", "quote": короткая точная цитата из этой реплики на языке оригинала, "proves": что она доказывает, 3–8 слов}.',
     '- "checked_range": если действие ПРОПУЩЕНО, укажи [с, по] — участок, где оно ожидалось; иначе null.',
     '- "na_reason": для N/A — какое условие неприменимости выполнено; иначе null.',
     '- "gross_error_type": только для критерия типа flag при ответе "yes": "insult" | "bypass_service" | "confidential_disclosure"; иначе null.',
     `- "explanation": 1–2 предложения на ${lang} языке в стиле: «Завершение — Нет. После ответа оператор закрыл чат без прощания. Основание — #12 и #13.»`,
     '- Не выдумывай реплики. Ссылайся только на существующие номера #.',
+    ...(opts.role && ROLE_INSTRUCTIONS[opts.role] ? ['', ROLE_INSTRUCTIONS[opts.role]] : []),
   ].join('\n');
 
   const user = [
@@ -129,12 +139,21 @@ export function responseSchema(criteria) {
           items: {
             type: 'object',
             additionalProperties: false,
-            required: ['criterion_id', 'reasoning', 'answer', 'evidence_msg_indices', 'checked_range', 'na_reason', 'gross_error_type', 'explanation'],
+            required: ['criterion_id', 'reasoning', 'answer', 'evidence_msg_indices', 'evidence', 'checked_range', 'na_reason', 'gross_error_type', 'explanation'],
             properties: {
               criterion_id: { type: 'string', enum: criteria.map((c) => c.id) },
               reasoning: { type: 'string' },
               answer: { type: 'string' },
               evidence_msg_indices: { type: 'array', items: { type: 'integer' } },
+              evidence: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['msg_index', 'quote', 'proves'],
+                  properties: { msg_index: { type: 'integer' }, quote: { type: 'string' }, proves: { type: 'string' } },
+                },
+              },
               checked_range: { type: ['array', 'null'], items: { type: 'integer' } },
               na_reason: { type: ['string', 'null'] },
               gross_error_type: { type: ['string', 'null'], enum: ['insult', 'bypass_service', 'confidential_disclosure', null] },

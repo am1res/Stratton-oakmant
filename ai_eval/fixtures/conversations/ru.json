@@ -1,0 +1,43 @@
+{
+  "conversation_id": "demo-ru-001",
+  "channel": "agent chat",
+  "language": "RU",
+  "messages": [
+    {
+      "message_id": "ru-1",
+      "timestamp": "00:00",
+      "speaker": "client",
+      "text": "Здравствуйте, где посмотреть тариф?"
+    },
+    {
+      "message_id": "ru-2",
+      "timestamp": "00:01",
+      "speaker": "bot",
+      "text": "Выберите тему: тариф, карта, перевод."
+    },
+    {
+      "message_id": "ru-3",
+      "timestamp": "00:02",
+      "speaker": "system",
+      "text": "Эскалация на оператора"
+    },
+    {
+      "message_id": "ru-4",
+      "timestamp": "00:03",
+      "speaker": "operator",
+      "text": "Здравствуйте! Я Алина. Тариф смотрите в веб-версии: Профиль, затем Тариф."
+    },
+    {
+      "message_id": "ru-5",
+      "timestamp": "00:04",
+      "speaker": "client",
+      "text": "Спасибо, нашла."
+    },
+    {
+      "message_id": "ru-6",
+      "timestamp": "00:05",
+      "speaker": "operator",
+      "text": "Рада помочь. Хорошего дня!"
+    }
+  ]
+}

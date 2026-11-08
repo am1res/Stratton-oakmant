@@ -38,15 +38,20 @@ export function renderResult(el, ev, { onEvidence, onChanged, focus } = {}) {
     return `<div class="crit" id="crit-${esc(c.id)}" data-crit="${esc(c.id)}">
       <div>${chip(c, answers[c.id])}</div>
       <div>
-        <div class="crit-name"><span class="id">${esc(c.id)}</span>${esc(c.name)}</div>
+        <div class="crit-name">${esc(c.name)}</div>
         <p class="crit-why">${esc(r.explanation)}</p>
+        ${r.evidence?.length ? `<ul class="ev-quotes">${r.evidence.map((e) => `<li>#${e.msg_index} <q>${esc(e.quote)}</q>${e.proves ? ` — ${esc(e.proves)}` : ''}</li>`).join('')}</ul>` : ''}
         ${r.na_reason && r.answer === 'na' ? `<p class="crit-why muted">Почему N/A: ${esc(r.na_reason)}</p>` : ''}
         ${r.gross_error_type && answers[c.id] === 'yes' ? `<p class="crit-why error">Тип нарушения: ${esc(GROSS[r.gross_error_type] || r.gross_error_type)}</p>` : ''}
         ${o ? `<p class="override">После апелляции: было ${esc(fmtAnswer(r.answer))}, стало ${esc(fmtAnswer(o.answer))}. ${esc(o.reason)}</p>` : ''}
         <div class="crit-foot">
           ${(r.evidence_msg_indices || []).map((i) => `<button class="ev" data-ev="${i}" title="Показать реплику #${i}">#${i}</button>`).join('')}
           ${r.checked_range ? `<button class="ev range" data-ev="${r.checked_range[0]}" data-ev-to="${r.checked_range[1]}" title="Где ожидалось действие">проверено #${r.checked_range[0]}–${r.checked_range[1]}</button>` : ''}
-          ${r.confidence !== undefined && r.confidence < 1 ? `<span class="confidence">модель не уверена: ${Math.round(r.confidence * 100)}% голосов</span>` : ''}
+          ${
+            r.agreement === 'arbitrated' || r.agreement === 'arbiter_failed' || (r.confidence !== undefined && r.confidence < 1)
+              ? `<span class="agreement">Стоит проверить</span>`
+              : ''
+          }
           <button class="link" data-appeal="${esc(c.id)}" style="margin-left:auto">Оспорить</button>
         </div>
         <div class="appeal-slot"></div>
@@ -67,7 +72,7 @@ export function renderResult(el, ev, { onEvidence, onChanged, focus } = {}) {
             <div class="score">${total ?? '—'}<small> из ${ev.score.max}</small></div>
           </div>
           ${ev.final && ev.final.total !== ev.score.total ? `<div><div class="score was">${ev.score.total ?? '—'}</div><div class="muted" style="font-size:12px">до апелляций</div></div>` : ''}
-          <div class="run-meta">Чек-лист v${ev.checklist_version}, модель ${esc(ev.model)}<br>${new Date(ev.created_at).toLocaleString('ru-RU')}${ev.usage?.cost_usd ? `, $${ev.usage.cost_usd.toFixed(4)}` : ''}</div>
+          <div class="run-meta">${new Date(ev.created_at).toLocaleString('ru-RU')}</div>
         </div>
         ${grossRow ? `<div class="gross-banner">Грубая ошибка: ${esc(GROSS[grossRow.gross_error_type] || 'см. критерий ' + grossRow.criterion_id)}. Отмечается отдельно и на балл не влияет.</div>` : ''}
         ${stripHtml(items, { large: true })}
@@ -80,7 +85,6 @@ export function renderResult(el, ev, { onEvidence, onChanged, focus } = {}) {
         .map((s) => `<div class="crit-group"><h3>${esc(s.name)}</h3>${cl.criteria.filter((c) => c.section === s.id).map(row).join('')}</div>`)
         .join('')}
       ${loose.length ? `<div class="crit-group"><h3>Другие критерии</h3>${loose.map(row).join('')}</div>` : ''}
-      <details class="prompt"><summary>Что именно получила модель (промпт этой оценки)</summary><pre>${esc(ev.prompt)}</pre></details>
     </section>`;
 
   // evidence → transcript
