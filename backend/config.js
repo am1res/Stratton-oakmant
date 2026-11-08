@@ -14,6 +14,8 @@ export const config = {
   api: {
     base: env.CQA_API_BASE || '',
     groupId: env.CQA_GROUP_ID || 'DEV',
+    // more sets shown together with the main one, always taken from the API (e.g. the control set): CQA_EXTRA_GROUPS=FBroker
+    extraGroups: (env.CQA_EXTRA_GROUPS || '').split(',').map((s) => s.trim()).filter(Boolean),
     dataFile: env.CQA_DATA_FILE || '',
   },
   llm: {

@@ -6,7 +6,7 @@ import { currentPath } from '../common/app.js';
 import { exportAllCsv } from '../analytics/dashboard.js';
 import { stripHtml } from '../common/strip.js';
 
-const state = { langs: null, channel: '', onlyProblems: false, onlyUnsure: false, q: '', sort: 'id' };
+const state = { langs: null, group: '', channel: '', onlyProblems: false, onlyUnsure: false, q: '', sort: 'id' };
 let activeJob = null; // survives re-renders, so leaving the page doesn't lose batch progress
 let lastFailures = [];
 
@@ -17,7 +17,9 @@ export async function render(el) {
   const langs = [...new Set(list.map((c) => c.language))];
   if (state.langs) state.langs = state.langs.filter((l) => langs.includes(l));
   // language and channel filters (also used by the batch buttons: they evaluate what is visible)
-  const inScope = (c) => (!state.langs || state.langs.includes(c.language)) && (!state.channel || c.channel === state.channel);
+  const groups = [...new Set(list.map((c) => c.group_id).filter(Boolean))];
+  if (state.group && !groups.includes(state.group)) state.group = '';
+  const inScope = (c) => (!state.group || c.group_id === state.group) && (!state.langs || state.langs.includes(c.language)) && (!state.channel || c.channel === state.channel);
 
   el.innerHTML = `
     <div class="page-head list-head">
@@ -39,6 +41,7 @@ export async function render(el) {
       <div id="failures"></div>
       <div class="filters">
         <input type="search" id="q" placeholder="Поиск по ID" value="${esc(state.q)}" aria-label="Поиск по ID">
+        ${groups.length > 1 ? `<select id="group" aria-label="Набор"><option value="">Все наборы</option>${groups.map((g) => `<option value="${esc(g)}" ${g === state.group ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select>` : ''}
         <details class="ms" id="langs">
           <summary aria-label="Языки"><span id="langs-label"></span></summary>
           <div class="ms-panel" role="group" aria-label="Языки (можно выбрать несколько)">
@@ -99,7 +102,7 @@ export async function render(el) {
           .join('')
       : `<tr><td colspan="5" class="empty">Нет диалогов под эти фильтры. <button class="link" id="reset-filters">Сбросить фильтры</button></td></tr>`;
     rows.querySelector('#reset-filters')?.addEventListener('click', () => {
-      Object.assign(state, { langs: null, channel: '', onlyProblems: false, onlyUnsure: false, q: '' });
+      Object.assign(state, { langs: null, group: '', channel: '', onlyProblems: false, onlyUnsure: false, q: '' });
       render(el);
     });
   };
@@ -156,6 +159,7 @@ export async function render(el) {
   window.addEventListener('resize', placePanel);
   syncLangs();
   bind('#channel', 'channel');
+  if (el.querySelector('#group')) bind('#group', 'group');
   bind('#sort', 'sort');
   bind('#problems', 'onlyProblems', 'checked');
   bind('#unsure', 'onlyUnsure', 'checked');
@@ -164,7 +168,7 @@ export async function render(el) {
     e.target.disabled = true;
     try {
       const r = await api.saveResults();
-      t.innerHTML = `Сохранено: <b>${esc(r.path)}</b> — ${r.ok} из ${r.total} оценены${r.missing ? `, <span class="error">${r.missing} без оценки</span>` : ''}. Теперь git add, commit, push.`;
+      t.innerHTML = `Сохранено: ${r.files.map((f) => `<b>${esc(f.path)}</b> — ${f.ok} из ${f.total}${f.missing ? ` <span class="error">(${f.missing} без оценки)</span>` : ''}`).join('; ')}. Теперь git add results, commit, push.`;
     } catch (err) {
       t.textContent = `Не сохранено: ${humanError(err)}`;
     } finally {

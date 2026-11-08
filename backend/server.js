@@ -21,9 +21,19 @@ let conversations = new Map();
 async function reloadConversations(opts = {}) {
   await loadArrangement().catch(() => {}); // demo scenario arrangement, if one was saved
   const list = await loadConversations(opts);
+  // extra sets (CQA_EXTRA_GROUPS) are always fetched from the API; if it fails, the cached copy is used
+  for (const g of config.api.extraGroups.filter((g) => g !== (opts.groupId || config.api.groupId))) {
+    try {
+      const extra = await loadConversations({ groupId: g, refresh: true });
+      list.push(...extra);
+      console.log(`[data] + ${extra.length} conversations from group ${g}`);
+    } catch (e) {
+      console.error(`[data] could not load group ${g}: ${e.message}`);
+    }
+  }
   const uploads = await store.list('uploads');
   conversations = new Map([...list, ...uploads.map((u) => normalizeRecord(u))].map((c) => [c.conversation_id, c]));
-  console.log(`[data] ${conversations.size} conversations loaded (group ${opts.groupId || config.api.groupId})`);
+  console.log(`[data] ${conversations.size} conversations loaded (group ${[opts.groupId || config.api.groupId, ...config.api.extraGroups].join(' + ')})`);
 }
 
 const wrap = (fn) => (req, res) =>
@@ -516,31 +526,39 @@ function modelLabel() {
 // Format from the organizers' guide: schema_version 1.0, team_name, model, results[].
 // The file goes to results/dev/results.json (DEV set) or results/prod/results.json (control set),
 // then it has to be committed and pushed.
-async function submission() {
-  const evaluations = (await store.list('evaluations')).filter((e) => conversations.has(e.conversation_id));
+// DEV set → results/dev, every other set (the control set) → results/prod
+const targetOf = (c) => (String(c.group_id || config.api.groupId).toUpperCase() === 'DEV' ? 'dev' : 'prod');
+async function submission(target) {
+  const ids = [...conversations.values()].filter((c) => !target || targetOf(c) === target).map((c) => c.conversation_id);
+  const evaluations = (await store.list('evaluations')).filter((e) => ids.includes(e.conversation_id));
   const local = /localhost|127\.0\.0\.1|0\.0\.0\.0/.test(config.llm.baseUrl);
   return buildSubmission({
-    conversationIds: [...conversations.keys()],
+    conversationIds: ids,
     evaluations,
     teamName: config.teamName,
     model: { mode: config.llm.mock ? 'mock' : local ? 'local' : 'api', name: modelLabel() },
   });
 }
-const resultsTarget = (q) => (q === 'dev' || q === 'prod' ? q : config.api.groupId === 'DEV' ? 'dev' : 'prod');
-
 app.get('/api/export', wrap(async (req, res) => {
-  if (req.query.download) res.setHeader('Content-Disposition', `attachment; filename="results_${resultsTarget(req.query.target)}.json"`);
-  res.json(await submission());
+  const target = req.query.target === 'dev' || req.query.target === 'prod' ? req.query.target : null;
+  if (req.query.download) res.setHeader('Content-Disposition', `attachment; filename="results_${target || 'all'}.json"`);
+  res.json(await submission(target));
 }));
 
+// writes results/dev/results.json and/or results/prod/results.json — one file per set that is loaded
 app.post('/api/export/save', wrap(async (req, res) => {
-  const target = resultsTarget(req.body?.target);
-  const out = await submission();
-  const file = path.join(ROOT, 'results', target, 'results.json');
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, JSON.stringify(out, null, 2) + '\n', 'utf-8');
-  const ok = out.results.filter((r) => r.status === 'ok').length;
-  res.json({ path: `results/${target}/results.json`, target, group_id: config.api.groupId, total: out.results.length, ok, missing: out.results.length - ok });
+  const wanted = req.body?.target === 'dev' || req.body?.target === 'prod' ? [req.body.target] : ['dev', 'prod'];
+  const present = new Set([...conversations.values()].map(targetOf));
+  const files = [];
+  for (const target of wanted.filter((t) => present.has(t))) {
+    const out = await submission(target);
+    const file = path.join(ROOT, 'results', target, 'results.json');
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, JSON.stringify(out, null, 2) + '\n', 'utf-8');
+    const ok = out.results.filter((r) => r.status === 'ok').length;
+    files.push({ path: `results/${target}/results.json`, target, total: out.results.length, ok, missing: out.results.length - ok });
+  }
+  res.json({ files });
 }));
 
 app.get('/api/meta', (req, res) =>
