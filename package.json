@@ -4,13 +4,16 @@
   "private": true,
   "description": "Conversation Quality Analytics prototype (Freedom Broker CQA hackathon)",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node backend/server.js",
     "dev": "node --watch backend/server.js",
     "test": "node --test test/*.test.js",
     "fetch-data": "node backend/data/fetch.js",
-    "eval": "node eval/eval.js"
+    "eval": "node eval/eval.js",
+    "export-reference": "node scripts/export_reference.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
