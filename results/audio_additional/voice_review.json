@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "team_name": "Stratton Oakmont",
+  "about": "Extra, not part of the checklist score. Gemini listened to every call recording and flagged moments where the operator may sound cold, dismissive, irritated or mocking. In the app this is a hint for the reviewer with jump-to-moment buttons; a human confirms each flag. Turns are 1-based and count every line, like evidence_turns in results.json.",
+  "used_in_score": false,
+  "calls_total": 5,
+  "calls_listened": 5,
+  "calls_missing": [],
+  "results": [
+    {
+      "conversation_id": "p4-ru-001",
+      "set": "dev",
+      "model": "gemini-3.8-flash",
+      "listened_to": "audio + transcript",
+      "overall": "ok",
+      "summary": "Оператор общался вежливо, спокойно и профессионально. Несмотря на недовольство клиента, сотрудник терпеливо разъяснил регламент и границы компетенции технической поддержки, не проявляя признаков раздражения или пренебрежения.",
+      "summary_turns": [],
+      "flags": [],
+      "notes": [],
+      "used_in_score": false,
+      "cost_usd": 0.00915,
+      "created_at": "2026-11-07T16:05:52+00:00"
+    },
+    {
+      "conversation_id": "p4-ru-002",
+      "set": "dev",
+      "model": "gemini-3.8-flash",
+      "listened_to": "audio + transcript",
+      "overall": "ok",
+      "summary": "Оператор общался вежливо, спокойно и профессионально. Никаких проявлений раздражения, сарказма или пренебрежения не зафиксировано.",
+      "summary_turns": [],
+      "flags": [],
+      "notes": [],
+      "used_in_score": false,
+      "cost_usd": 0.01412,
+      "created_at": "2026-11-07T16:03:10+00:00"
+    },
+    {
+      "conversation_id": "p4-ru-003",
+      "set": "dev",
+      "model": "gemini-3.8-flash",
+      "listened_to": "audio + transcript",
+      "overall": "ok",
+      "summary": "Оператор общался вежливо, спокойно и профессионально. После случайного наложения реплик сразу извинился за перебивание, корректно провел процедуру идентификации и предложил решение вопроса.",
+      "summary_turns": [],
+      "flags": [],
+      "notes": [],
+      "used_in_score": false,
+      "cost_usd": 0.01016,
+      "created_at": "2026-11-07T15:58:02+00:00"
+    },
+    {
+      "conversation_id": "p4-ru-004",
+      "set": "dev",
+      "model": "gemini-3.8-flash",
+      "listened_to": "audio + transcript",
+      "overall": "ok",
+      "summary": "Оператор общался вежливо, корректно и профессионально на протяжении всего разговора. Терпеливо провел процедуру идентификации, предложив альтернативный способ по SMS, спокойно реагировал на перебивания клиента и подробно несколько раз разъяснил порядок выставления приказа через трейдеров.",
+      "summary_turns": [],
+      "flags": [],
+      "notes": [],
+      "used_in_score": false,
+      "cost_usd": 0.0137,
+      "created_at": "2026-11-07T16:10:46+00:00"
+    },
+    {
+      "conversation_id": "p4-ru-005",
+      "set": "dev",
+      "model": "gemini-3.8-flash",
+      "listened_to": "audio + transcript",
+      "overall": "ok",
+      "summary": "Оператор общался вежливо, спокойно и терпеливо, подробно проконсультировал клиента по возникшим вопросам. Нарушений и проявлений негативного тона не обнаружено.",
+      "summary_turns": [],
+      "flags": [],
+      "notes": [],
+      "used_in_score": false,
+      "cost_usd": 0.01083,
+      "created_at": "2026-11-07T16:08:00+00:00"
+    }
+  ]
+}
