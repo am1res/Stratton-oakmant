@@ -1,4 +1,4 @@
-# CQA: Conversation Quality Analytics
+# CQA: Conversation Quality Analytics by Stratton Oakmont
 
 Prototype for the Freedom Broker conversation-quality hackathon. A reviewer opens a support chat or call, sees a checklist score with the evidence behind it, and can appeal a criterion. The browser talks only to the Node app on port 3000.
 
