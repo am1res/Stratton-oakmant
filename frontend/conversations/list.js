@@ -137,18 +137,20 @@ export async function render(el) {
     syncLangs();
     draw();
   });
-  // the panel is positioned on the screen (fixed), so a short table can't cut it off
-  msBox.addEventListener('toggle', () => {
-    if (!msBox.open) return;
+  // The panel is positioned on the screen (fixed), so a short table can't cut it off. It is placed
+  // again whenever the page moves (scroll in any container, resize, or the stats above changing size).
+  const placePanel = () => {
+    if (!msBox.isConnected || !msBox.open) return;
     const r = msBox.querySelector('summary').getBoundingClientRect();
     Object.assign(msPanel.style, { position: 'fixed', top: `${r.bottom + 4}px`, left: `${r.left}px`, minWidth: `${r.width}px` });
-  });
-  const closeMs = () => (msBox.open = false);
+  };
+  msBox.addEventListener('toggle', placePanel);
+  msBox.addEventListener('change', () => requestAnimationFrame(placePanel));
   document.addEventListener('click', (e) => {
-    if (msBox.open && !msBox.contains(e.target)) closeMs();
+    if (msBox.open && !msBox.contains(e.target)) msBox.open = false;
   });
-  window.addEventListener('scroll', closeMs, { passive: true });
-  window.addEventListener('resize', closeMs);
+  document.addEventListener('scroll', placePanel, { capture: true, passive: true });
+  window.addEventListener('resize', placePanel);
   syncLangs();
   bind('#channel', 'channel');
   bind('#sort', 'sort');

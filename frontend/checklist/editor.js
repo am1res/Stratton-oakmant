@@ -21,7 +21,6 @@ export async function render(el) {
       <label class="field cl-pick">Активный чек-лист
         <select id="pick">${all.map((c) => `<option value="${esc(c.id)}" ${c.active ? 'selected' : ''}>${esc(c.name)} · v${c.version} · ${c.criteria} крит.</option>`).join('')}</select>
       </label>
-      <button class="ghost" id="edit">Изменить</button>
       <span class="v partial" id="edit-badge" hidden>Редактирование</span>
       <button id="new-open">+ Новый чек-лист</button>
     </div>
@@ -85,11 +84,9 @@ export async function render(el) {
     el.querySelector('#cl-root').classList.toggle('cl-view', !on);
     el.querySelector('#bar-view').hidden = on;
     el.querySelector('#bar-edit').hidden = !on;
-    el.querySelector('#edit').hidden = on;
     el.querySelector('#edit-badge').hidden = !on;
     if (on) el.querySelector('#status').textContent = '';
   };
-  el.querySelector('#edit').onclick = () => setEditing(true);
   el.querySelector('#edit2').onclick = () => {
     setEditing(true);
     el.querySelector('#bar-edit').scrollIntoView({ block: 'nearest' });
