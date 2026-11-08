@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CQA: оценка качества диалогов</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="common/style.css?v=clean2">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/conversations"><strong>CQA</strong><span>контроль качества диалогов</span></a>
+    <nav aria-label="Разделы">
+      <a href="#/conversations" data-nav="conversations">Диалоги</a>
+      <a href="#/operators" data-nav="operators">Операторы</a>
+      <a href="#/analytics" data-nav="analytics">Аналитика</a>
+      <a href="#/appeals" data-nav="appeals">Апелляции <span class="count" id="appeal-count" hidden></span></a>
+      <a href="#/checklist" data-nav="checklist">Чек-лист</a>
+    </nav>
+  </header>
+  <!-- Each screen is a self-contained module with render(el, params), so it can be mounted
+       later as an HTML web resource in Dynamics 365. -->
+  <main id="app"></main>
+  <script type="module" src="common/app.js?v=clean2"></script>
+</body>
+</html>

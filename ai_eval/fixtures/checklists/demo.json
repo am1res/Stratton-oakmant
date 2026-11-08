@@ -1,0 +1,48 @@
+{
+  "checklist_version_id": "demo-not-official-v1",
+  "shared_instructions": "DEMO CHECKLIST. This is not an official quality rubric. The rules below were written only to exercise the evaluation pipeline. Judge only the human operator. Bot and system messages are context. This checklist has no weights and no point scale.",
+  "criteria": [
+    {
+      "criterion_id": "demo_operator_replied",
+      "name": "Demo operator reply",
+      "description": "Synthetic check for whether a human operator posted a message. A bot message does not count. Not an official criterion.",
+      "answer_type": "boolean",
+      "allow_na": false,
+      "additional_instructions": "True only when speaker is operator. Do not credit a bot greeting."
+    },
+    {
+      "criterion_id": "demo_product_followup",
+      "name": "Demo product follow-up",
+      "description": "Synthetic check used only when the client names a product. Not an official criterion.",
+      "answer_type": "boolean",
+      "allow_na": true,
+      "na_rule": "Not applicable when the client never names a product.",
+      "additional_instructions": "A bot menu label is not the operator naming a product."
+    },
+    {
+      "criterion_id": "demo_clarity_anchor",
+      "name": "Demo clarity anchor",
+      "description": "Synthetic clarity label. The anchor numbers are the permitted answers, not points. Not an official criterion.",
+      "answer_type": "numeric",
+      "allow_na": true,
+      "na_rule": "Not applicable when the operator sent no message.",
+      "additional_instructions": "Choose only an anchor value. Do not invent a number between anchors.",
+      "scale": {
+        "anchors": [
+          {"value": 0, "description": "No operator answer to the question."},
+          {"value": 1, "description": "The operator answered only part of the question."},
+          {"value": 2, "description": "The operator answered the question that was asked."}
+        ]
+      }
+    },
+    {
+      "criterion_id": "demo_handoff_label",
+      "name": "Demo handoff label",
+      "description": "Synthetic label for how the transcript shows the operator joining. Not an official criterion.",
+      "answer_type": "categorical",
+      "allowed_values": ["system_handoff", "client_requested_human", "unclear"],
+      "allow_na": false,
+      "additional_instructions": "Choose only one allowed value. Do not add a new label."
+    }
+  ]
+}

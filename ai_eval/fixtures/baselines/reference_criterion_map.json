@@ -1,0 +1,10 @@
+{
+  "contact": "c01",
+  "discovery": "c02",
+  "identification": "c03",
+  "consultation": "c04",
+  "empathy": "c05",
+  "dialogue": "c06",
+  "closure": "c07",
+  "critical": "c08"
+}

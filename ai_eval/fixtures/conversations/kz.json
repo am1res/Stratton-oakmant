@@ -1,0 +1,43 @@
+{
+  "conversation_id": "demo-kz-001",
+  "channel": "agent chat",
+  "language": "KZ",
+  "messages": [
+    {
+      "message_id": "kz-1",
+      "timestamp": "00:00",
+      "speaker": "client",
+      "text": "Сәлеметсіз бе, тарифті қайдан көремін?"
+    },
+    {
+      "message_id": "kz-2",
+      "timestamp": "00:01",
+      "speaker": "bot",
+      "text": "Тақырыпты таңдаңыз: тариф, карта, аударым."
+    },
+    {
+      "message_id": "kz-3",
+      "timestamp": "00:02",
+      "speaker": "system",
+      "text": "Чат операторға жіберілді"
+    },
+    {
+      "message_id": "kz-4",
+      "timestamp": "00:03",
+      "speaker": "operator",
+      "text": "Сәлеметсіз бе! Менің атым Аружан. Тарифті веб-нұсқада ашыңыз: Профиль, содан кейін Тариф."
+    },
+    {
+      "message_id": "kz-5",
+      "timestamp": "00:04",
+      "speaker": "client",
+      "text": "Рақмет, таптым."
+    },
+    {
+      "message_id": "kz-6",
+      "timestamp": "00:05",
+      "speaker": "operator",
+      "text": "Көмектесе алғаныма қуаныштымын."
+    }
+  ]
+}
