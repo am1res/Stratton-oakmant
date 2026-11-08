@@ -25,10 +25,10 @@ export async function render(el) {
     <section class="sheet">
       <div class="sheet-pad" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
         <div class="weightbar" id="weights"></div>
-        <button class="ghost" id="add" style="margin-left:auto">Добавить критерий</button>
       </div>
       <div class="crit-cols" aria-hidden="true"><span>ID</span><span>Критерий</span><span>Тип ответа</span><span>Вес</span><span>N/A</span><span></span></div>
       <div id="crits"></div>
+      <div class="sheet-pad add-crit"><button class="ghost" id="add">+ Добавить критерий</button></div>
     </section>
     <details class="sheet sheet-pad" style="margin-top:16px" id="history">
       <summary style="cursor:pointer">История версий (${versions.length}) — посмотреть и вернуть любую</summary>
@@ -136,7 +136,9 @@ export async function render(el) {
     open.add(id);
     setDirty();
     draw();
-    crits.querySelector(`[data-id="${id}"] input[data-k="name"]`)?.select();
+    const fresh = crits.querySelector(`[data-id="${id}"]`);
+    fresh?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    fresh?.querySelector('input[data-k="name"]')?.select();
   };
 
   el.querySelector('#discard').onclick = () => render(el);
@@ -192,7 +194,7 @@ function critHtml(c, i, sections, isOpen) {
       <label class="field">Раздел<select data-k="section">${sections.map((s) => `<option value="${esc(s.id)}" ${s.id === c.section ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>
       <label class="field">Тип ответа<select data-k="type">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${k === c.type ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
       <label class="field">Вес${c.type === 'flag' ? ' (у флага баллов нет)' : ''}<input data-k="weight" type="number" min="0" value="${c.weight}" ${c.type === 'flag' ? 'disabled' : ''}></label>
-      <label class="field full">${isScale ? 'Что оценивается' : c.type === 'flag' ? 'Что считается нарушением' : 'Когда ставить «Да»'}<textarea data-k="yes_rule" rows="2">${esc(c.yes_rule)}</textarea></label>
+      <label class="field full">${isScale ? 'Что оценивается (баллы за каждую ступень — в шкале ниже)' : c.type === 'flag' ? 'Что считается нарушением (флаг ставится, если это произошло)' : 'Правило оценки: в каких случаях ставится «Да», а в каких — «Нет»'}<textarea data-k="yes_rule" rows="3" placeholder="${isScale ? 'Например: насколько полно и верно оператор ответил на вопросы клиента.' : c.type === 'flag' ? 'Например: оператор оскорбил клиента или предложил услугу в обход компании.' : '«Да» — оператор поздоровался и представился в первой реплике. «Нет» — не поздоровался или не назвал своё имя.'}">${esc(c.yes_rule)}</textarea></label>
       ${
         isScale
           ? `<div class="full"><div class="field" style="margin-bottom:6px">Шкала (верхняя ступень даёт полный вес)</div>${c.scale
@@ -201,7 +203,7 @@ function critHtml(c, i, sections, isOpen) {
           : ''
       }
       <label class="check full"><input type="checkbox" data-k="na_allowed" ${c.na_allowed ? 'checked' : ''}> Разрешить N/A</label>
-      ${c.na_allowed ? `<label class="field full">Когда ставить N/A<textarea data-k="na_rule" rows="2">${esc(c.na_rule)}</textarea></label>` : ''}
+      ${c.na_allowed ? `<label class="field full">В каких случаях критерий не применяется (N/A)<textarea data-k="na_rule" rows="2" placeholder="Например: клиент ушёл из чата до того, как задал вопрос.">${esc(c.na_rule)}</textarea></label>` : ''}
       <label class="field full">Порядок решения для модели (по шагу на строку). Главный рычаг точности
         <textarea data-k="decision_steps" rows="4">${esc((c.decision_steps || []).join('\n'))}</textarea></label>
       <label class="field full">Примеры (по одному на строку: ответ | реплика | почему)

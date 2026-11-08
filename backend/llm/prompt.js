@@ -57,7 +57,7 @@ function answerFormat(c) {
 
 function criterionBlock(c) {
   const lines = [`### ${c.id} — ${c.name}`, `Тип: ${c.type}. Ответ: ${answerFormat(c)}.`];
-  if (c.yes_rule) lines.push(c.type === 'scale' ? `Что оценивается: ${c.yes_rule}` : `«Да»: ${c.yes_rule}`);
+  if (c.yes_rule) lines.push(c.type === 'scale' ? `Что оценивается: ${c.yes_rule}` : `Правило оценки («Да» / «Нет»): ${c.yes_rule}`);
   if (c.type === 'scale') lines.push('Шкала:', ...c.scale.map((s) => `  ${s.value} — ${s.description}`));
   lines.push(c.na_allowed ? `N/A разрешён ТОЛЬКО если: ${c.na_rule}` : 'N/A для этого критерия НЕ разрешён.');
   if (c.decision_steps?.length) lines.push('Порядок решения:', ...c.decision_steps.map((s, i) => `  ${i + 1}. ${s}`));

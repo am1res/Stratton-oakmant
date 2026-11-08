@@ -54,19 +54,28 @@ export async function render(el) {
   const binMax = Math.max(1, ...bins.map((b) => b.n));
 
   // ---- by language / channel ----
-  const groups = {};
-  for (const r of rows) {
-    for (const key of [`Язык ${r.lang}`, `Канал: ${CHANNEL[r.channel] || r.channel}`]) {
-      const g = (groups[key] ||= { key, n: 0, sum: 0, scored: 0, gross: 0 });
-      g.n++;
-      if (r.s.total !== null) {
-        g.sum += r.s.total;
-        g.scored++;
-      }
-      if (r.s.gross_error) g.gross++;
+  // every language / channel of the dataset is listed, also when none of its dialogs is evaluated yet
+  const CHANNEL_PLURAL = { 'agent chat': 'Чаты', 'voice call': 'Звонки' };
+  const groupBy = (keyOf, labelOf) => {
+    const g = {};
+    for (const c of convs) {
+      const k = keyOf(c);
+      g[k] ||= { key: labelOf(k), total: 0, n: 0, sum: 0, scored: 0, gross: 0 };
+      g[k].total++;
     }
-  }
-  const groupList = Object.values(groups).map((g) => ({ ...g, avg: g.scored ? g.sum / g.scored : null }));
+    for (const r of rows) {
+      const x = g[keyOf(r)] ||= { key: labelOf(keyOf(r)), total: 0, n: 0, sum: 0, scored: 0, gross: 0 };
+      x.n++;
+      if (r.s.total !== null) {
+        x.sum += r.s.total;
+        x.scored++;
+      }
+      if (r.s.gross_error) x.gross++;
+    }
+    return Object.values(g).map((x) => ({ ...x, avg: x.scored ? x.sum / x.scored : null }));
+  };
+  const byLang = groupBy((c) => c.lang ?? c.language, (k) => k);
+  const byChannel = groupBy((c) => c.channel, (k) => CHANNEL_PLURAL[k] || CHANNEL[k] || k);
 
   // ---- AI accuracy vs reference labels ----
   const acc = accuracy(rows, ref.labels || {});
@@ -128,14 +137,18 @@ export async function render(el) {
       <section class="sheet" aria-labelledby="h-groups">
         <div class="dash-head"><h2 id="h-groups">Языки и каналы</h2></div>
         <table class="grid compact">
-          <thead><tr><th>Группа</th><th class="r">Диалогов</th><th>Средний балл</th><th class="r">Грубых</th></tr></thead>
-          <tbody>${groupList
+          <thead><tr><th></th><th class="r">Оценено</th><th>Средний балл</th><th class="r">Грубых</th></tr></thead>
+          ${[['По языкам', byLang], ['По каналам', byChannel]]
             .map(
-              (g) => `<tr><td>${esc(g.key)}</td><td class="r">${g.n}</td>
-                <td><div class="mini"><span class="mini-bar" style="width:${g.avg ?? 0}%"></span><b>${fmt(g.avg, 1)}</b></div></td>
+              ([title, list]) => `<tbody class="group-block"><tr class="group-head"><th colspan="4">${title}</th></tr>${list
+                .map(
+                  (g) => `<tr><td>${esc(g.key)}</td><td class="r">${g.n} <span class="muted">из ${g.total}</span></td>
+                <td>${g.avg === null ? '<span class="muted">нет оценок</span>' : `<div class="mini"><span class="mini-bar" style="width:${g.avg}%"></span><b>${fmt(g.avg, 1)}</b></div>`}</td>
                 <td class="r ${g.gross ? 'error' : ''}">${g.gross}</td></tr>`,
+                )
+                .join('')}</tbody>`,
             )
-            .join('')}</tbody>
+            .join('')}
         </table>
       </section>
 

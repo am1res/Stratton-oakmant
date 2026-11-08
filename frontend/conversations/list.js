@@ -6,7 +6,7 @@ import { currentPath } from '../common/app.js';
 import { exportAllCsv } from '../analytics/dashboard.js';
 import { stripHtml } from '../common/strip.js';
 
-const state = { lang: '', channel: '', onlyProblems: false, onlyUnsure: false, q: '', sort: 'id' };
+const state = { langs: [], channel: '', onlyProblems: false, onlyUnsure: false, q: '', sort: 'id' };
 let activeJob = null; // survives re-renders, so leaving the page doesn't lose batch progress
 let lastFailures = [];
 
@@ -14,20 +14,16 @@ export async function render(el) {
   const list = await api.conversations();
   if (!list.length) return renderEmpty(el);
   const scored = list.filter((c) => c.latest_score !== null);
-  const avg = scored.length ? Math.round(scored.reduce((s, c) => s + c.latest_score, 0) / scored.length) : null;
-  const gross = list.filter((c) => c.gross_error).length;
-  const appeals = list.filter((c) => c.has_open_appeal).length;
   const langs = [...new Set(list.map((c) => c.language))];
+  state.langs = state.langs.filter((l) => langs.includes(l));
+  // language and channel filters (also used by the batch buttons: they evaluate what is visible)
+  const inScope = (c) => (!state.langs.length || state.langs.includes(c.language)) && (!state.channel || c.channel === state.channel);
 
   el.innerHTML = `
     <div class="page-head"><h1 class="grow">Диалоги</h1></div>
     <section class="sheet" style="overflow:hidden">
       <div class="stats">
-        <div class="stat"><b>${list.length}</b><span>диалогов в наборе</span></div>
-        <div class="stat"><b>${scored.length}</b><span>оценено</span></div>
-        <div class="stat"><b>${avg ?? '—'}</b><span>средний балл</span></div>
-        <div class="stat ${gross ? 'alert' : ''}"><b>${gross}</b><span>с грубыми ошибками</span></div>
-        <div class="stat"><b>${appeals}</b><span>с открытой апелляцией</span></div>
+        <div id="stat-nums" style="display:contents"></div>
         <div class="actions">
           <div class="progress" id="progress" hidden><i style="width:0"></i></div>
           <span class="muted" id="progress-text" aria-live="polite"></span>
@@ -40,7 +36,10 @@ export async function render(el) {
       <div id="failures"></div>
       <div class="filters">
         <input type="search" id="q" placeholder="Поиск по ID" value="${esc(state.q)}" aria-label="Поиск по ID">
-        <select id="lang" aria-label="Язык"><option value="">Все языки</option>${langs.map((l) => `<option ${l === state.lang ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
+        <div class="seg" role="group" aria-label="Языки (можно выбрать несколько)" id="langs">
+          <button type="button" data-lang="" aria-pressed="${!state.langs.length}">Все языки</button>
+          ${langs.map((l) => `<button type="button" data-lang="${esc(l)}" aria-pressed="${state.langs.includes(l)}">${esc(l)}</button>`).join('')}
+        </div>
         <select id="channel" aria-label="Канал"><option value="">Чаты и звонки</option><option value="agent chat" ${state.channel === 'agent chat' ? 'selected' : ''}>Только чаты</option><option value="voice call" ${state.channel === 'voice call' ? 'selected' : ''}>Только звонки</option></select>
         <label class="check"><input type="checkbox" id="problems" ${state.onlyProblems ? 'checked' : ''}> Только требующие внимания</label>
         <label class="check"><input type="checkbox" id="unsure" ${state.onlyUnsure ? 'checked' : ''}> Нужна проверка</label>
@@ -56,16 +55,30 @@ export async function render(el) {
     </section>`;
 
   const rows = el.querySelector('#rows');
+  // Summary numbers follow every filter (languages, channel, search, checkboxes).
+  const drawStats = (items) => {
+    const sc = items.filter((c) => c.latest_score !== null);
+    const avg = sc.length ? Math.round(sc.reduce((s, c) => s + c.latest_score, 0) / sc.length) : null;
+    const gross = items.filter((c) => c.gross_error).length;
+    const appeals = items.filter((c) => c.has_open_appeal).length;
+    const filtered = items.length !== list.length;
+    el.querySelector('#stat-nums').innerHTML = `
+        <div class="stat"><b>${filtered ? `${items.length} <small class="muted">из ${list.length}</small>` : list.length}</b><span>${filtered ? 'диалогов под фильтром' : 'диалогов в наборе'}</span></div>
+        <div class="stat"><b>${sc.length}</b><span>оценено</span></div>
+        <div class="stat"><b>${avg ?? '—'}</b><span>средний балл</span></div>
+        <div class="stat ${gross ? 'alert' : ''}"><b>${gross}</b><span>с грубыми ошибками</span></div>
+        <div class="stat"><b>${appeals}</b><span>с открытой апелляцией</span></div>`;
+  };
   const draw = () => {
     let items = list.filter(
       (c) =>
-        (!state.lang || c.language === state.lang) &&
-        (!state.channel || c.channel === state.channel) &&
+        inScope(c) &&
         (!state.q || c.conversation_id.toLowerCase().includes(state.q.toLowerCase())) &&
         (!state.onlyProblems || c.gross_error || c.has_open_appeal || c.low_confidence || (c.latest_score !== null && c.latest_score < 70)) &&
         (!state.onlyUnsure || c.low_confidence),
     );
     if (state.sort === 'score') items = [...items].sort((a, b) => (a.latest_score ?? 999) - (b.latest_score ?? 999));
+    drawStats(items);
     rows.innerHTML = items.length
       ? items
           .map(
@@ -80,7 +93,7 @@ export async function render(el) {
           .join('')
       : `<tr><td colspan="5" class="empty">Нет диалогов под эти фильтры. <button class="link" id="reset-filters">Сбросить фильтры</button></td></tr>`;
     rows.querySelector('#reset-filters')?.addEventListener('click', () => {
-      Object.assign(state, { lang: '', channel: '', onlyProblems: false, onlyUnsure: false, q: '' });
+      Object.assign(state, { langs: [], channel: '', onlyProblems: false, onlyUnsure: false, q: '' });
       render(el);
     });
   };
@@ -100,7 +113,17 @@ export async function render(el) {
       draw();
     });
   bind('#q', 'q');
-  bind('#lang', 'lang');
+  // languages: several can be on at once; "Все языки" clears the choice
+  el.querySelector('#langs').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-lang]');
+    if (!b) return;
+    const l = b.dataset.lang;
+    if (!l) state.langs = [];
+    else state.langs = state.langs.includes(l) ? state.langs.filter((x) => x !== l) : [...state.langs, l];
+    if (state.langs.length === langs.length) state.langs = []; // all picked = no filter
+    el.querySelectorAll('#langs button').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.lang ? state.langs.includes(x.dataset.lang) : !state.langs.length)));
+    draw();
+  });
   bind('#channel', 'channel');
   bind('#sort', 'sort');
   bind('#problems', 'onlyProblems', 'checked');
@@ -170,7 +193,7 @@ export async function render(el) {
     }
   }
 
-  const visibleIds = () => list.filter((c) => (!state.lang || c.language === state.lang) && (!state.channel || c.channel === state.channel)).map((c) => c.conversation_id);
+  const visibleIds = () => list.filter(inScope).map((c) => c.conversation_id);
   batchBtn.onclick = () => startJob(visibleIds());
   const newBtn = el.querySelector('#batch-new');
   if (newBtn) newBtn.onclick = () => startJob(visibleIds(), true);

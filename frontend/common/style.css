@@ -387,3 +387,9 @@ table.grid th { white-space: nowrap; }
 .chart { width: auto; max-width: 100%; }
 table.grid th.num { font-size: 12px; font-weight: 500; color: var(--ink-3); }
 .chart-wrap { padding-top: 28px; }
+
+/* analytics: languages and channels shown as two blocks of one table */
+table.grid tr.group-head th { position: static; background: transparent; border-top: 0; color: var(--ink); font-size: 13px; font-weight: 600; padding-top: var(--s4); }
+table.grid tbody.group-block + tbody.group-block tr.group-head th { border-top: 1px solid var(--line); }
+/* checklist editor: "add criterion" sits under the last criterion */
+.add-crit { border-top: 1px solid var(--line-2); }
