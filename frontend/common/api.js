@@ -14,14 +14,22 @@ export const api = {
   meta: () => req('GET', '/api/meta'),
   conversations: () => req('GET', '/api/conversations'),
   conversation: (id) => req('GET', `/api/conversations/${encodeURIComponent(id)}`),
+  voice: (id) => req('GET', `/api/conversations/${encodeURIComponent(id)}/voice?t=${Date.now()}`),
+  analyzeVoice: (id, force = false) => req('POST', `/api/conversations/${encodeURIComponent(id)}/voice${force ? '?force=1' : ''}`),
+  emotion: (id) => req('GET', `/api/conversations/${encodeURIComponent(id)}/emotion?t=${Date.now()}`),
+  analyzeEmotion: (id) => req('POST', `/api/conversations/${encodeURIComponent(id)}/emotion`),
   upload: (json) => req('POST', '/api/conversations/upload', json),
   reloadData: (group_id) => req('POST', '/api/data/reload', { group_id }),
   checklist: () => req('GET', '/api/checklists/current'),
   checklistVersions: () => req('GET', '/api/checklists'),
   saveChecklist: (cl) => req('PUT', '/api/checklists/current', cl),
   resetChecklist: () => req('POST', '/api/checklists/reset'),
+  restoreChecklist: (version) => req('POST', '/api/checklists/restore', { version }),
+  demoArrangement: () => req('GET', '/api/demo/arrangement'),
+  arrangeDemo: () => req('POST', '/api/demo/arrange'),
+  resetDemo: () => req('DELETE', '/api/demo/arrange'),
   evaluate: (conversation_id) => req('POST', '/api/evaluate', { conversation_id }),
-  evaluateBatch: (conversation_ids) => req('POST', '/api/evaluate/batch', { conversation_ids }),
+  evaluateBatch: (conversation_ids, skip_done = false) => req('POST', '/api/evaluate/batch', { conversation_ids, skip_done }),
   job: (id) => req('GET', `/api/jobs/${id}`),
   evaluations: (conversation_id) => req('GET', `/api/evaluations?conversation_id=${encodeURIComponent(conversation_id)}`),
   evaluation: (id) => req('GET', `/api/evaluations/${id}`),
@@ -38,7 +46,8 @@ export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&a
 /** Turn backend/LLM errors into a sentence that says what to do. */
 export function humanError(err) {
   const m = String(err?.message || err);
-  if (err instanceof TypeError) return 'Нет связи с сервером. Запустите npm start и повторите.';
+  if (err instanceof TypeError) return 'Нет связи с сервером. Обновите страницу.';
+  if (/GEMINI_API_KEY|No API key/.test(m)) return 'Нет ключа Gemini. Впишите GEMINI_API_KEY в файл .env в корне проекта и перезапустите сервер.';
   if (/LLM HTTP 401/.test(m)) return 'Ключ ИИ не принят (401). Проверьте LLM_API_KEY в .env и перезапустите сервер.';
   if (/LLM HTTP 429/.test(m)) return 'Слишком много запросов к ИИ или закончился баланс (429). Подождите минуту или проверьте баланс.';
   if (/LLM HTTP 404|model_not_found|does not exist/.test(m)) return 'Модель не найдена. Проверьте LLM_MODEL в .env.';

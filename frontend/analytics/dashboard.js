@@ -25,9 +25,6 @@ export async function render(el) {
   const totals = rows.map((r) => r.s.total).filter((x) => x !== null);
   const avg = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : null;
   const gross = rows.filter((r) => r.s.gross_error);
-  const cost = evals.reduce((a, e) => a + (e.usage?.cost_usd || 0), 0);
-  const versions = [...new Set(rows.map((r) => r.e.checklist_version))].sort((a, b) => a - b);
-
   // ---- where points are lost (criteria of the newest checklist version) ----
   const newest = rows.reduce((a, r) => (r.e.checklist_version > a.e.checklist_version ? r : a)).cl;
   const critStats = newest.criteria
@@ -80,7 +77,7 @@ export async function render(el) {
   el.innerHTML = `
     <div class="page-head">
       <div class="grow"><h1>Аналитика</h1>
-        <p class="muted">По последней оценке каждого диалога, с учётом решений по апелляциям. Версии чек-листа в выборке: ${versions.map((v) => `v${v}`).join(', ')}.</p></div>
+        <p class="muted">По последней оценке каждого диалога, с учётом апелляций.</p></div>
       <button class="ghost" id="csv">Скачать CSV</button>
     </div>
 
@@ -89,7 +86,6 @@ export async function render(el) {
       <div class="stat"><b>${fmt(avg, 1)}</b><span>средний балл</span></div>
       <div class="stat ${gross.length ? 'alert' : ''}"><b>${gross.length}</b><span>с грубыми ошибками</span></div>
       <div class="stat"><b>${convs.filter((c) => c.has_open_appeal).length}</b><span>открытых апелляций</span></div>
-      <div class="stat"><b>$${cost.toFixed(2)}</b><span>на все оценки, $${evals.length ? (cost / evals.length).toFixed(4) : '0'} за одну</span></div>
     </div></section>
 
     <div class="dash-grid">
@@ -102,7 +98,7 @@ export async function render(el) {
         <div class="lost-list">${critStats
           .map(
             (st) => `<div class="lost-row">
-              <div class="lost-name"><span class="tag">${esc(st.c.id)}</span> ${esc(st.c.name)}</div>
+              <div class="lost-name">${esc(st.c.name)}</div>
               <div class="stack" role="img" aria-label="${esc(`${st.c.name}: выполнено ${st.pass}, частично ${st.partial}, не выполнено ${st.fail}, N/A ${st.na} из ${st.n}`)}">
                 ${seg('pass', st.pass, st.n, `Выполнено: ${st.pass} из ${st.n}`)}${seg('partial', st.partial, st.n, `Частично: ${st.partial} из ${st.n}`)}${seg('fail', st.fail, st.n, `Не выполнено: ${st.fail} из ${st.n}`)}${seg('na', st.na, st.n, `N/A: ${st.na} из ${st.n}`)}
               </div>
@@ -165,32 +161,27 @@ export async function render(el) {
             ? `<p class="dash-sub"><span class="big">${fmt(acc.overall * 100, 0)}%</span> совпадений по ${acc.cells} оценкам критериев в ${acc.n} диалогах.
                 Средняя разница итога ${fmt(acc.mae, 1)} балла. Грубые ошибки: найдено ${acc.gross.tp}, пропущено ${acc.gross.fn}, ложных ${acc.gross.fp}.</p>
                <div class="acc-list">${acc.per
-                 .map((p) => `<div class="acc-row" data-tip="${esc(`${p.id}: ${p.ok} из ${p.n}`)}" tabindex="0"><span class="tag">${esc(p.id)}</span><span class="mini"><span class="mini-bar" style="width:${p.rate * 100}%"></span></span><b>${fmt(p.rate * 100, 0)}%</b></div>`)
+                 .map((p) => `<div class="acc-row" data-tip="${esc(`${p.name}: ${p.ok} из ${p.n}`)}" tabindex="0"><span>${esc(p.name)}</span><span class="mini"><span class="mini-bar" style="width:${p.rate * 100}%"></span></span><b>${fmt(p.rate * 100, 0)}%</b></div>`)
                  .join('')}</div>
                ${acc.misses.length ? `<details class="dash-sub"><summary>Расхождения (${acc.misses.length})</summary><ul class="plain">${acc.misses
                  .slice(0, 30)
-                 .map((m) => `<li><a href="#/conversations/${encodeURIComponent(m.id)}?c=${encodeURIComponent(m.c)}">${esc(m.id)} ${esc(m.c)}</a>: ИИ ${esc(String(m.pred))}, эталон ${esc(String(m.truth))}</li>`)
-                 .join('')}</ul></details>` : ''}
-               <p class="muted dash-sub">Эталон: ${ref.status === 'draft' ? 'черновая разметка команды' : 'разметка команды'} (data/ground_truth.dev.json). Используется только для контроля качества, не для оценки.</p>`
-            : '<p class="muted dash-sub">Нет диалогов с эталонной разметкой среди оценённых. Оцените DEV-набор, чтобы увидеть точность.</p>'
+                 .map((m) => `<li><a href="#/conversations/${encodeURIComponent(m.id)}?c=${encodeURIComponent(m.c)}">${esc(m.id)}, ${esc(m.name)}</a>: оценка ${esc(String(m.pred))}, эталон ${esc(String(m.truth))}</li>`)
+                 .join('')}</ul></details>` : ''}`
+            : '<p class="muted dash-sub">Нет диалогов с эталонной разметкой среди оценённых.</p>'
         }
       </section>
 
-      <section class="sheet dash-wide" aria-labelledby="h-ver">
-        <div class="dash-head"><h2 id="h-ver">Что изменилось после правки чек-листа</h2></div>
-        ${
-          changes.length
-            ? `<table class="grid compact"><thead><tr><th>Диалог</th><th>Было</th><th>Стало</th><th class="r">Изменение</th><th>Критерии</th></tr></thead><tbody>${changes
-                .map(
-                  (ch) => `<tr><td><a href="#/conversations/${encodeURIComponent(ch.id)}">${esc(ch.id)}</a></td>
-                    <td>v${ch.from.v}: ${fmt(ch.from.total, 2)}</td><td>v${ch.to.v}: ${fmt(ch.to.total, 2)}</td>
-                    <td class="r ${ch.delta < 0 ? 'error' : ch.delta > 0 ? 'good' : ''}">${ch.delta > 0 ? '+' : ''}${fmt(ch.delta, 2)}</td>
-                    <td class="muted">${esc(ch.diff)}</td></tr>`,
-                )
-                .join('')}</tbody></table>`
-            : `<p class="muted dash-sub">Сравнение появится, когда диалог будет оценён по двум разным версиям чек-листа: измените критерий на странице «Чек-лист» и переоцените диалоги.</p>`
-        }
-      </section>
+      ${changes.length ? `<section class="sheet dash-wide" aria-labelledby="h-ver">
+        <div class="dash-head"><h2 id="h-ver">Как изменились баллы</h2></div>
+        <table class="grid compact"><thead><tr><th>Диалог</th><th>Было</th><th>Стало</th><th class="r">Изменение</th><th>Критерии</th></tr></thead><tbody>${changes
+          .map(
+            (ch) => `<tr><td><a href="#/conversations/${encodeURIComponent(ch.id)}">${esc(ch.id)}</a></td>
+              <td>${fmt(ch.from.total, 2)}</td><td>${fmt(ch.to.total, 2)}</td>
+              <td class="r ${ch.delta < 0 ? 'error' : ch.delta > 0 ? 'good' : ''}">${ch.delta > 0 ? '+' : ''}${fmt(ch.delta, 2)}</td>
+              <td class="muted">${esc(ch.diff)}</td></tr>`,
+          )
+          .join('')}</tbody></table>
+      </section>` : ''}
     </div>
     <div class="tooltip" id="tip" role="tooltip" hidden></div>`;
 
@@ -242,9 +233,9 @@ function accuracy(rows, labels) {
       truth[c.id] = t;
       const p = r.e.criteria.find((x) => x.criterion_id === c.id)?.answer; // AI's own answer, before appeals
       const hit = p === t;
-      (per[c.id] ||= { id: c.id, ok: 0, n: 0 }).n++;
+      (per[c.id] ||= { id: c.id, name: c.name, ok: 0, n: 0 }).n++;
       if (hit) per[c.id].ok++, ok++;
-      else misses.push({ id: r.e.conversation_id, c: c.id, pred: p, truth: t });
+      else misses.push({ id: r.e.conversation_id, c: c.id, name: c.name, pred: p, truth: t });
       cells++;
       if (c.type === 'flag') {
         if (t === 'yes' && p === 'yes') gross.tp++;

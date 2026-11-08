@@ -2,10 +2,12 @@
 import express from 'express';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { Readable } from 'node:stream';
 import { config, ROOT } from './config.js';
 import * as store from './storage.js';
-import { loadConversations, normalizeRecord, getSignedAudioUrl } from './data/source.js';
+import { loadConversations, normalizeRecord, getSignedAudioUrl, setDemoArrangement, arrangeScenarios, operatorAndDate } from './data/source.js';
+import { getAudioFile } from './data/audio.js';
+import { analyzeCall } from './data/voice.js';
+import { analyzeEmotion, readEmotion } from './data/emotion.js';
 import { evaluateConversation, runCriteria } from './llm/evaluate.js';
 import { computeScore, validateChecklist, normalizeAnswer } from '../shared/scoring.js';
 
@@ -16,6 +18,7 @@ app.use(express.json({ limit: '10mb' }));
 let conversations = new Map();
 
 async function reloadConversations(opts = {}) {
+  await loadArrangement().catch(() => {}); // demo scenario arrangement, if one was saved
   const list = await loadConversations(opts);
   const uploads = await store.list('uploads');
   conversations = new Map([...list, ...uploads.map((u) => normalizeRecord(u))].map((c) => [c.conversation_id, c]));
@@ -67,6 +70,10 @@ app.get('/api/conversations', wrap(async (req, res) => {
         channel: c.channel,
         language: c.language,
         group_id: c.group_id,
+        operator: c.operator,
+        operator_source: c.operator_source,
+        date: c.date,
+        date_source: c.date_source,
         messages: c.transcript.length,
         latest_evaluation_id: e?.id || null,
         latest_score: s ? s.total : null,
@@ -101,27 +108,96 @@ app.post('/api/data/reload', wrap(async (req, res) => {
   res.json({ count: conversations.size });
 }));
 
-// Audio proxy: keeps the signed link on the server, forwards Range for seeking.
+// Audio: the signed link stays on the server. The organizers' link returns an HTML player page,
+// not audio, so backend/data/audio.js follows it to the real mp3 and caches it in storage/audio/.
+// sendFile handles Range requests, so seeking works.
 app.get('/api/conversations/:id/audio', wrap(async (req, res) => {
-  const url = getSignedAudioUrl(req.params.id);
-  if (!url) throw httpError(404, 'no audio for this conversation');
-  const headers = req.headers.range ? { Range: req.headers.range } : {};
-  const upstream = await fetch(url, { headers });
-  res.status(upstream.status);
-  for (const h of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
-    const v = upstream.headers.get(h);
-    if (v) res.setHeader(h, v);
-  }
-  if (!upstream.body) return res.end();
-  Readable.fromWeb(upstream.body).pipe(res);
+  getConv(req.params.id);
+  const found = await getAudioFile(req.params.id, getSignedAudioUrl(req.params.id)).catch((e) => {
+    throw httpError(502, e.message);
+  });
+  if (!found) throw httpError(404, 'no audio for this conversation');
+  res.sendFile(found.file, { headers: { 'Content-Type': found.mime, 'Cache-Control': 'no-store' } });
 }));
 
+// Voice analysis (tone of the operator) made by voice/to_gemini.py. A hint for the reviewer,
+// never part of the score. The Python pipeline numbers lines from 1 ([n]); here we convert to
+// msg_index (n - 1) and take the audio second from our own transcript, so seeks match the player.
+app.post('/api/conversations/:id/voice', wrap(async (req, res) => {
+  const conv = getConv(req.params.id);
+  if (conv.channel !== 'voice call') throw httpError(400, 'Анализ голоса только для звонков.');
+  const audioUrl = getSignedAudioUrl(req.params.id);
+  if (!audioUrl) throw httpError(400, 'У этого звонка нет ссылки на запись.');
+  if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+    throw httpError(400, 'Нет ключа Gemini. Впишите GEMINI_API_KEY в файл .env в корне проекта и перезапустите сервер.');
+  }
+  await analyzeCall({
+    conversation_id: conv.conversation_id,
+    channel: conv.channel,
+    language: conv.language,
+    audio_url: audioUrl,
+    transcript: conv.transcript.map((m) => ({ timestamp: m.timestamp, speaker: m.speaker, text: m.text })),
+  }, { force: req.query.force === '1' });
+  req.method = 'GET';
+  return voiceReport(req, res);
+}));
+
+app.get('/api/conversations/:id/voice', wrap(voiceReport));
+
+app.get('/api/conversations/:id/emotion', wrap(async (req, res) => {
+  getConv(req.params.id);
+  const saved = await readEmotion(req.params.id);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(saved ? { available: true, ...saved } : { available: false, lines: [] });
+}));
+
+app.post('/api/conversations/:id/emotion', wrap(async (req, res) => {
+  const conv = getConv(req.params.id);
+  if (conv.channel !== 'voice call') throw httpError(400, 'Разметка тона только для звонков.');
+  const saved = await analyzeEmotion(conv);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ available: true, ...(saved || { lines: [] }) });
+}));
+
+async function voiceReport(req, res) {
+  const conv = getConv(req.params.id);
+  let raw;
+  try {
+    raw = JSON.parse(await fs.readFile(path.join(config.paths.voiceOut, 'voice', `${req.params.id.replace(/[^a-zA-Z0-9_.-]/g, '_')}.json`), 'utf-8'));
+  } catch {
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ available: false });
+  }
+  const renumber = (s) => String(s || '').replace(/\[(\d+)\](?:\s*[-–]\s*\[(\d+)\])?/g, (m, a, b) => (b ? `#${a - 1}–#${b - 1}` : `#${a - 1}`));
+  const point = (x) => {
+    const idx = Number.isInteger(x.message) && x.message > 0 ? x.message - 1 : null;
+    const msg = idx !== null ? conv.transcript[idx] : null;
+    return { ...x, msg_index: msg ? idx : null, offset_sec: msg?.offset_sec ?? null, reason: renumber(x.reason) };
+  };
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({
+    available: true,
+    overall: raw.overall,
+    summary: renumber(raw.summary),
+    flags: (raw.flags || []).map(point),
+    notes: (raw.notes || []).map(point),
+    model: raw.model,
+    audio_only: !!raw.audio_only,
+    cost_usd: raw.cost_usd,
+    created_at: raw.created_at,
+  });
+}
+
 // ---------------- checklists ----------------
+let seeding = null; // the default checklist is written once, even if 4 batch workers ask at the same time
 async function currentChecklist() {
   const all = await store.list('checklists');
   if (all.length) return all.sort((a, b) => b.version - a.version)[0];
-  const def = JSON.parse(await fs.readFile(config.paths.defaultChecklist, 'utf-8'));
-  return store.put('checklists', `${def.id}_v${def.version}`, { ...def, saved_at: new Date().toISOString() });
+  seeding ??= (async () => {
+    const def = JSON.parse(await fs.readFile(config.paths.defaultChecklist, 'utf-8'));
+    return store.put('checklists', `${def.id}_v${def.version}`, { ...def, saved_at: new Date().toISOString() });
+  })().finally(() => (seeding = null));
+  return seeding;
 }
 
 app.get('/api/checklists/current', wrap(async (req, res) => res.json(await currentChecklist())));
@@ -130,6 +206,21 @@ app.get('/api/checklists', wrap(async (req, res) => res.json((await store.list('
 app.put('/api/checklists/current', wrap(async (req, res) => {
   const cur = await currentChecklist();
   const next = { ...req.body, id: cur.id, version: cur.version + 1, saved_at: new Date().toISOString() };
+  const errors = validateChecklist(next);
+  if (errors.length) return res.status(400).json({ error: 'invalid checklist', details: errors });
+  res.json(await store.put('checklists', `${next.id}_v${next.version}`, next));
+}));
+
+// Roll back to any saved version. History stays immutable: the chosen version is copied as a
+// NEW version (cur + 1), so evaluations made under every version keep pointing to their snapshot.
+app.post('/api/checklists/restore', wrap(async (req, res) => {
+  const wanted = Number(req.body?.version);
+  const all = await store.list('checklists');
+  const old = all.find((c) => c.version === wanted);
+  if (!old) throw httpError(404, `checklist version ${req.body?.version} not found`);
+  const cur = await currentChecklist();
+  if (old.version === cur.version) throw httpError(400, `version ${wanted} is already the current one`);
+  const next = { ...old, version: cur.version + 1, restored_from: old.version, saved_at: new Date().toISOString() };
   const errors = validateChecklist(next);
   if (errors.length) return res.status(400).json({ error: 'invalid checklist', details: errors });
   res.json(await store.put('checklists', `${next.id}_v${next.version}`, next));
@@ -152,8 +243,19 @@ app.post('/api/evaluate', wrap(async (req, res) => res.json(await evaluateOne(re
 
 const jobs = new Map();
 app.post('/api/evaluate/batch', wrap(async (req, res) => {
-  const ids = req.body?.conversation_ids?.length ? req.body.conversation_ids : [...conversations.keys()];
-  const job = { id: `job_${Date.now()}`, total: ids.length, done: 0, errors: [], status: 'running', evaluation_ids: [] };
+  let ids = req.body?.conversation_ids?.length ? req.body.conversation_ids : [...conversations.keys()];
+  // skip_done (ported from the Django branch): don't pay again for conversations that already have
+  // an evaluation under the CURRENT checklist version. After a criterion change the version goes up,
+  // so everything is evaluated again.
+  let skipped = 0;
+  if (req.body?.skip_done) {
+    const version = (await currentChecklist()).version;
+    const done = new Set((await store.list('evaluations')).filter((e) => e.checklist_version === version).map((e) => e.conversation_id));
+    const before = ids.length;
+    ids = ids.filter((id) => !done.has(id));
+    skipped = before - ids.length;
+  }
+  const job = { id: `job_${Date.now()}`, total: ids.length, done: 0, skipped, errors: [], status: ids.length ? 'running' : 'done', evaluation_ids: [] };
   jobs.set(job.id, job);
   const queue = [...ids];
   const worker = async () => {
@@ -206,7 +308,13 @@ app.post('/api/appeals', wrap(async (req, res) => {
     criterion_id,
     comment: comment.trim(),
     status: 'open',
-    original: { answer: crit.answer, explanation: crit.explanation, evidence_msg_indices: crit.evidence_msg_indices },
+    original: {
+      answer: crit.answer,
+      explanation: crit.explanation,
+      evidence_msg_indices: crit.evidence_msg_indices,
+      evidence: crit.evidence || [],
+      checked_range: crit.checked_range || null,
+    },
     ai_suggestion: null,
     reviewer_decision: null,
     created_at: now.toISOString(),
@@ -257,6 +365,67 @@ app.post('/api/appeals/:id/decide', wrap(async (req, res) => {
   res.json({ appeal, evaluation: ev });
 }));
 
+// ---------------- demo operators: scenario arrangement ----------------
+// The data has no operators or chat dates. data/demo_operators.json (committed) arranges the demo
+// names/dates for the DEV set into readable scenarios (strong, weak, improving, declining), built
+// from the draft reference grades. POST /api/demo/arrange can rebuild it from the latest AI scores
+// into storage/demo/operators.json, which then takes priority. Conversations in neither file (e.g.
+// the control set) keep random demo values. The page banner says it is an arrangement for the demo.
+const DEMO_FILE = path.join(ROOT, 'data', 'demo_operators.json');
+
+function reapplyDemo() {
+  for (const c of conversations.values()) {
+    if (c.operator_source !== 'demo' && c.date_source !== 'demo') continue;
+    Object.assign(c, operatorAndDate({ conversation_id: c.conversation_id, transcript: c.transcript }));
+  }
+}
+
+async function readArrangement() {
+  const fromStorage = await store.get('demo', 'operators');
+  if (fromStorage) return { ...fromStorage, source: fromStorage.source || 'scores' };
+  try {
+    return JSON.parse(await fs.readFile(DEMO_FILE, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+async function loadArrangement() {
+  const saved = await readArrangement();
+  setDemoArrangement(saved?.assignments || {});
+  return saved;
+}
+
+app.get('/api/demo/arrangement', wrap(async (req, res) => {
+  const saved = await readArrangement();
+  res.json(saved ? { active: true, source: saved.source, created_at: saved.created_at, count: Object.keys(saved.assignments).length } : { active: false });
+}));
+
+app.post('/api/demo/arrange', wrap(async (req, res) => {
+  const evals = await store.list('evaluations');
+  const latest = {};
+  for (const e of evals) if (!latest[e.conversation_id] || e.created_at > latest[e.conversation_id].created_at) latest[e.conversation_id] = e;
+  const items = [...conversations.values()]
+    .filter((c) => latest[c.conversation_id] && c.operator_source === 'demo')
+    .map((c) => {
+      const e = latest[c.conversation_id];
+      const sc = e.final || e.score;
+      return { id: c.conversation_id, score: sc.total ?? 0, isCall: c.channel === 'voice call', gross: !!sc.gross_error };
+    });
+  if (items.length < 12) throw httpError(400, `нужно хотя бы 12 оценённых диалогов, сейчас ${items.length}`);
+  const saved = await store.put('demo', 'operators', { created_at: new Date().toISOString(), source: 'scores', assignments: arrangeScenarios(items) });
+  setDemoArrangement(saved.assignments);
+  reapplyDemo();
+  res.json({ active: true, created_at: saved.created_at, count: Object.keys(saved.assignments).length });
+}));
+
+app.delete('/api/demo/arrange', wrap(async (req, res) => {
+  await fs.rm(path.join(config.paths.storage, 'demo', 'operators.json'), { force: true });
+  const saved = await loadArrangement(); // back to data/demo_operators.json, if present
+  reapplyDemo();
+  res.json(saved ? { active: true, source: saved.source } : { active: false });
+}));
+
 // Reference labels (our own ground truth) for the "AI accuracy" panel. Not used for grading.
 app.get('/api/reference', wrap(async (req, res) => {
   try {
@@ -268,15 +437,27 @@ app.get('/api/reference', wrap(async (req, res) => {
 }));
 
 // ---------------- meta + static ----------------
+function modelLabel() {
+  if (config.llm.mock) return 'mock';
+  if (config.llm.mode === 'ai_eval') {
+    const { a, b, adjudicator } = config.llm.judges;
+    return [a && `A ${a}`, b && `B ${b}`, adjudicator && `arbiter ${adjudicator}`].filter(Boolean).join(' · ') || 'ai_eval';
+  }
+  return config.llm.model;
+}
+
 app.get('/api/meta', (req, res) =>
-  res.json({ model: config.llm.mock ? 'mock' : config.llm.model, votes: config.llm.votes, group_id: config.api.groupId, price_in: config.llm.priceIn, price_out: config.llm.priceOut }),
+  res.json({ model: modelLabel(), mode: config.llm.mode, votes: config.llm.votes, group_id: config.api.groupId, price_in: config.llm.priceIn, price_out: config.llm.priceOut }),
 );
 app.use('/shared', express.static(path.join(ROOT, 'shared')));
-app.use(express.static(path.join(ROOT, 'frontend')));
+app.use(express.static(path.join(ROOT, 'frontend'), {
+  maxAge: 0,
+  setHeaders(res) { res.setHeader('Cache-Control', 'no-cache'); },
+}));
 
 export { app, reloadConversations };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.join(ROOT, 'backend', 'server.js')) {
   await reloadConversations().catch((e) => console.error(`[data] could not load conversations: ${e.message}`));
-  app.listen(config.port, () => console.log(`CQA running on http://localhost:${config.port}  (model: ${config.llm.mock ? 'mock' : config.llm.model})`));
+  app.listen(config.port, () => console.log(`CQA running on http://localhost:${config.port}  (mode: ${config.llm.mode}, model: ${modelLabel()})`));
 }

@@ -23,6 +23,17 @@ Mocks for UI work: `contracts/mocks/*.json` (or run the server with `LLM_MOCK=1`
 - `timestamp`: the original string (`MM:SS` for chats, ISO 8601 for calls). Show it as-is.
 - `offset_sec`: seconds since the first line. Use it only for seeking the audio player.
 - `speaker`: `client | operator | bot | system`.
+- `offset_sec` (calls): seconds into the AUDIO FILE, from the "recording started" event, with paused parts cut out.
+- `recorded` (added): `false` for lines said while the recording was paused (not in the audio).
+
+Voice analysis (added): `GET /api/conversations/:id/voice` →
+`{available, overall: ok|possible_issue|clear_issue, summary, flags: [{msg_index, offset_sec, cue, label, reason}], notes: [{msg_index, offset_sec, kind, reason}], model, cost_usd}`
+or `{available: false}`. Never part of the score.
+
+Evaluation criterion (added fields): `evidence: [{msg_index, quote, proves}]`;
+in `LLM_MODE=ensemble` also `agreement: agreed|arbitrated|arbiter_failed` and `votes: [A, B, arbiter?]`.
+Evaluation (added): `mode: single|ensemble`. Appeal `original` (added): `evidence`, `checked_range`.
+Batch (added): `POST /api/evaluate/batch {conversation_ids?, skip_done?}` → job has `skipped`.
 
 ## Checklist
 

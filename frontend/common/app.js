@@ -3,16 +3,19 @@
 // Add a route by importing a screen module that exports render(el, params).
 import { api, esc } from './api.js';
 import * as conversations from '../conversations/list.js';
-import * as card from '../conversations/card.js';
+import * as card from '../conversations/card.js?v=clean2';
 import * as checklist from '../checklist/editor.js';
 import * as appeals from '../appeals/reviewer.js';
 import * as analytics from '../analytics/dashboard.js';
+import * as operators from '../operators/operators.js';
 
 const routes = [
   [/^#\/conversations\/([^?]+)$/, 'conversations', (m, q) => card.render(app(), { id: decodeURIComponent(m[1]), focus: q.get('c'), msg: q.get('m') })],
   [/^#\/checklist$/, 'checklist', () => checklist.render(app())],
   [/^#\/appeals$/, 'appeals', () => appeals.render(app())],
   [/^#\/analytics$/, 'analytics', () => analytics.render(app())],
+  [/^#\/operators\/([^?]+)$/, 'operators', (m) => operators.render(app(), { name: decodeURIComponent(m[1]) })],
+  [/^#\/operators$/, 'operators', () => operators.render(app())],
   [/^#?\/?(conversations)?$/, 'conversations', () => conversations.render(app())],
 ];
 
@@ -54,7 +57,7 @@ async function route() {
       const offline = e instanceof TypeError; // fetch failed: server not running
       app().innerHTML = `<div class="sheet state-box">
         <h2>${offline ? 'Нет связи с сервером' : 'Не удалось открыть страницу'}</h2>
-        <p class="muted">${offline ? 'Запустите сервер командой npm start в папке проекта и повторите.' : esc(e.message)}</p>
+        <p class="muted">${offline ? 'Нет связи с сервером. Обновите страницу.' : esc(e.message)}</p>
         <p><button id="retry">Повторить</button> <a class="btn ghost" href="#/conversations">К списку диалогов</a></p>
       </div>`;
       app().querySelector('#retry').onclick = route;
@@ -67,7 +70,3 @@ async function route() {
 
 window.addEventListener('hashchange', route);
 route();
-api
-  .meta()
-  .then((m) => (document.getElementById('meta').innerHTML = `Модель <b>${esc(m.model)}</b>, набор <b>${esc(m.group_id)}</b>`))
-  .catch(() => {});

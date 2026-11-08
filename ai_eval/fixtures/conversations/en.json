@@ -1,0 +1,43 @@
+{
+  "conversation_id": "demo-en-001",
+  "channel": "voice call",
+  "language": "EN",
+  "messages": [
+    {
+      "message_id": "en-1",
+      "timestamp": "2026-01-15T10:00:00Z",
+      "speaker": "client",
+      "text": "Hi, I cannot find the tariff name."
+    },
+    {
+      "message_id": "en-2",
+      "timestamp": "2026-01-15T10:00:05Z",
+      "speaker": "bot",
+      "text": "Please choose a topic."
+    },
+    {
+      "message_id": "en-3",
+      "timestamp": "2026-01-15T10:00:12Z",
+      "speaker": "system",
+      "text": "Chat transferred to an agent"
+    },
+    {
+      "message_id": "en-4",
+      "timestamp": "2026-01-15T10:00:20Z",
+      "speaker": "operator",
+      "text": "Hello, I'm Maya. On the website open Profile, then Tariff."
+    },
+    {
+      "message_id": "en-5",
+      "timestamp": "2026-01-15T10:00:40Z",
+      "speaker": "client",
+      "text": "Got it, thanks."
+    },
+    {
+      "message_id": "en-6",
+      "timestamp": "2026-01-15T10:00:48Z",
+      "speaker": "operator",
+      "text": "Glad to help. Have a good day."
+    }
+  ]
+}
