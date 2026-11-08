@@ -11,15 +11,18 @@ export async function render(el) {
   const open = new Set();
   let dirty = false;
 
-  el.innerHTML = `
+  el.innerHTML = `<div id="cl-root" class="cl-view">
     <div class="page-head">
       <div class="grow">
         <h1>Чек-лист</h1>
         <p class="muted">${esc(current.name)}, версия ${current.version}. Всего версий: ${versions.length}. Новые оценки используют этот чек-лист.</p>
+        <p id="status" aria-live="polite" style="margin:4px 0 0"></p>
       </div>
       <label class="field cl-pick">Активный чек-лист
         <select id="pick">${all.map((c) => `<option value="${esc(c.id)}" ${c.active ? 'selected' : ''}>${esc(c.name)} · v${c.version} · ${c.criteria} крит.</option>`).join('')}</select>
       </label>
+      <button class="ghost" id="edit">Изменить</button>
+      <span class="v partial" id="edit-badge" hidden>Редактирование</span>
       <button id="new-open">+ Новый чек-лист</button>
     </div>
     <section class="sheet sheet-pad new-cl" id="new-panel" hidden>
@@ -34,15 +37,21 @@ export async function render(el) {
       <p class="muted" style="margin:8px 0 0">Старые чек-листы и оценки по ним сохраняются. Переключаться между чек-листами можно в списке «Активный чек-лист».</p>
     </section>
     <section class="sheet">
-      <div class="sheet-pad" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-        <div class="weightbar" id="weights"></div>
+      <fieldset class="cl-form" id="cl-form" disabled>
+        <div class="sheet-pad" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+          <div class="weightbar" id="weights"></div>
+        </div>
+        <div class="crit-cols" aria-hidden="true"><span>ID</span><span>Критерий</span><span>Тип ответа</span><span>Вес</span><span>N/A</span><span></span></div>
+        <div id="crits"></div>
+      </fieldset>
+      <div class="editor-bar" id="bar-view">
+        <span class="muted grow">Режим просмотра: раскройте критерий, чтобы посмотреть правила. Чтобы поменять этот чек-лист, нажмите «Изменить». Чтобы сделать другой — «Новый чек-лист».</span>
+        <button class="ghost" id="edit2">Изменить</button>
       </div>
-      <div class="crit-cols" aria-hidden="true"><span>ID</span><span>Критерий</span><span>Тип ответа</span><span>Вес</span><span>N/A</span><span></span></div>
-      <div id="crits"></div>
-      <div class="editor-bar">
+      <div class="editor-bar" id="bar-edit" hidden>
         <button class="ghost" id="add">+ Добавить критерий</button>
-        <span class="muted grow" id="status" aria-live="polite"></span>
-        <button class="ghost" id="discard" disabled>Отменить изменения</button>
+        <span class="muted grow" id="dirty-note">Изменения сохранятся как версия ${current.version + 1} чек-листа «${esc(current.name)}»</span>
+        <button class="ghost" id="discard">Отменить</button>
         <button id="save" disabled>Сохранить как версию ${current.version + 1}</button>
       </div>
     </section>
@@ -53,19 +62,37 @@ export async function render(el) {
     </details>
     <details class="sheet sheet-pad" style="margin-top:16px">
       <summary class="muted" style="cursor:pointer">Общие правила для модели и сброс</summary>
-      <label class="field" style="margin-top:12px">Общие правила (по одному на строку, применяются ко всем критериям)
-        <textarea id="general" rows="8">${esc((draft.general_rules || []).join('\n'))}</textarea>
-      </label>
-      <p style="margin-top:12px"><button class="danger" id="reset">Вернуть исходный чек-лист из PDF</button></p>
-    </details>`;
+      <fieldset class="cl-form" id="cl-general" disabled>
+        <label class="field" style="margin-top:12px">Общие правила (по одному на строку, применяются ко всем критериям)
+          <textarea id="general" rows="8">${esc((draft.general_rules || []).join('\n'))}</textarea>
+        </label>
+        <p style="margin-top:12px" class="edit-only"><button class="danger" id="reset">Вернуть исходный чек-лист из PDF</button></p>
+      </fieldset>
+    </details></div>`;
 
   const crits = el.querySelector('#crits');
   const setDirty = () => {
     dirty = true;
     el.querySelector('#save').disabled = false;
-    el.querySelector('#discard').disabled = false;
-    el.querySelector('#status').textContent = 'Есть несохранённые изменения';
+    el.querySelector('#dirty-note').textContent = `Есть несохранённые изменения. Они сохранятся как версия ${current.version + 1}.`;
     weights();
+  };
+
+  // view mode by default: everything is read-only until "Изменить" is pressed
+  const setEditing = (on) => {
+    el.querySelector('#cl-form').disabled = !on;
+    el.querySelector('#cl-general').disabled = !on;
+    el.querySelector('#cl-root').classList.toggle('cl-view', !on);
+    el.querySelector('#bar-view').hidden = on;
+    el.querySelector('#bar-edit').hidden = !on;
+    el.querySelector('#edit').hidden = on;
+    el.querySelector('#edit-badge').hidden = !on;
+    if (on) el.querySelector('#status').textContent = '';
+  };
+  el.querySelector('#edit').onclick = () => setEditing(true);
+  el.querySelector('#edit2').onclick = () => {
+    setEditing(true);
+    el.querySelector('#bar-edit').scrollIntoView({ block: 'nearest' });
   };
 
   function weights() {
@@ -195,7 +222,11 @@ export async function render(el) {
   };
   const alertBox = (err) => (el.querySelector('#status').innerHTML = `<span class="error">Не создано. ${esc(err.message)}</span>`);
 
-  el.querySelector('#discard').onclick = () => render(el);
+  el.querySelector('#discard').onclick = () => {
+    if (dirty && !confirm('Отменить все несохранённые изменения?')) return;
+    dirty = false;
+    render(el);
+  };
   el.querySelector('#save').onclick = async (e) => {
     e.target.disabled = true;
     try {
@@ -205,6 +236,7 @@ export async function render(el) {
       el.querySelector('#status').innerHTML = `<span class="saved-note">Сохранено как версия ${saved.version}. Новые оценки используют её.</span>`;
     } catch (err) {
       el.querySelector('#status').innerHTML = `<span class="error">Не сохранено. ${esc(err.message)}</span>`;
+      el.querySelector('#dirty-note').innerHTML = `<span class="error">Не сохранено. ${esc(err.message)}</span>`;
       e.target.disabled = false;
     }
   };

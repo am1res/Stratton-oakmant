@@ -413,3 +413,10 @@ details.ms[open] > summary { border-color: var(--forest); }
 .new-cl-row .check { padding-bottom: 9px; }
 .editor-bar { position: sticky; bottom: 0; z-index: 5; display: flex; gap: var(--s2); align-items: center; padding: var(--s3) var(--s5); background: var(--surface); border-top: 1px solid var(--line); border-radius: 0 0 var(--r-md) var(--r-md); box-shadow: 0 -4px 12px rgba(0,0,0,.04); }
 .editor-bar .grow { flex: 1; }
+
+/* checklist editor: read-only view mode until "Изменить" */
+fieldset.cl-form { border: 0; padding: 0; margin: 0; min-width: 0; }
+fieldset.cl-form:disabled input, fieldset.cl-form:disabled textarea, fieldset.cl-form:disabled select { color: var(--ink); -webkit-text-fill-color: var(--ink); opacity: 1; background: #fafbfa; cursor: default; }
+fieldset.cl-form:disabled input::placeholder, fieldset.cl-form:disabled textarea::placeholder { color: transparent; -webkit-text-fill-color: transparent; }
+.cl-view [data-act], .cl-view .edit-only, .cl-view [data-restore] { display: none !important; }
+#bar-view { background: #fafbfa; }

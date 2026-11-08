@@ -116,29 +116,39 @@ export async function render(el) {
       draw();
     });
   bind('#q', 'q');
-  // languages: a dropdown with checkboxes. "Все языки" ticks / unticks every language;
-  // when every language is ticked, "Все языки" is ticked too (state.langs = null = no filter).
+  // languages: a dropdown with checkboxes. state.langs = null means "Все языки" (only that box is ticked).
+  // Ticking a language shows only the ticked ones; unticking the last one, ticking all of them,
+  // or ticking "Все языки" goes back to "Все языки".
   const msBox = el.querySelector('#langs');
+  const msPanel = msBox.querySelector('.ms-panel');
   const syncLangs = () => {
-    const on = (l) => !state.langs || state.langs.includes(l);
-    msBox.querySelectorAll('input[data-lang]').forEach((i) => (i.checked = i.dataset.lang ? on(i.dataset.lang) : !state.langs));
-    el.querySelector('#langs-label').textContent = !state.langs ? 'Все языки' : state.langs.length ? state.langs.join(', ') : 'Язык не выбран';
+    msBox.querySelectorAll('input[data-lang]').forEach((i) => (i.checked = i.dataset.lang ? !!state.langs?.includes(i.dataset.lang) : !state.langs));
+    el.querySelector('#langs-label').textContent = state.langs ? state.langs.join(', ') : 'Все языки';
   };
   msBox.addEventListener('change', (e) => {
     const l = e.target.dataset?.lang;
     if (l === undefined) return;
-    if (!l) state.langs = e.target.checked ? null : [];
+    if (!l) state.langs = null;
     else {
-      const cur = state.langs ?? [...langs];
-      state.langs = e.target.checked ? [...new Set([...cur, l])] : cur.filter((x) => x !== l);
-      if (state.langs.length === langs.length) state.langs = null;
+      const cur = state.langs ?? [];
+      const next = e.target.checked ? [...new Set([...cur, l])] : cur.filter((x) => x !== l);
+      state.langs = next.length && next.length < langs.length ? langs.filter((x) => next.includes(x)) : null;
     }
     syncLangs();
     draw();
   });
-  document.addEventListener('click', (e) => {
-    if (msBox.open && !msBox.contains(e.target)) msBox.open = false;
+  // the panel is positioned on the screen (fixed), so a short table can't cut it off
+  msBox.addEventListener('toggle', () => {
+    if (!msBox.open) return;
+    const r = msBox.querySelector('summary').getBoundingClientRect();
+    Object.assign(msPanel.style, { position: 'fixed', top: `${r.bottom + 4}px`, left: `${r.left}px`, minWidth: `${r.width}px` });
   });
+  const closeMs = () => (msBox.open = false);
+  document.addEventListener('click', (e) => {
+    if (msBox.open && !msBox.contains(e.target)) closeMs();
+  });
+  window.addEventListener('scroll', closeMs, { passive: true });
+  window.addEventListener('resize', closeMs);
   syncLangs();
   bind('#channel', 'channel');
   bind('#sort', 'sort');
