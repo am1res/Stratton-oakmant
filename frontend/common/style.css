@@ -421,5 +421,9 @@ fieldset.cl-form:disabled input::placeholder, fieldset.cl-form:disabled textarea
 .cl-view [data-act], .cl-view .edit-only, .cl-view [data-restore] { display: none !important; }
 #bar-view { background: #fafbfa; }
 
-/* list page: keep the action buttons on their own row, so the row does not jump when a filter makes the first number wider */
-.stats .actions { flex-basis: 100%; justify-content: flex-end; }
+/* list page: action buttons sit next to the page title, the card holds only the numbers, filters and table */
+.list-head { align-items: center; }
+.list-head .actions { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.stats .stat { min-width: 110px; }
+/* language dropdown: same height and look as the other filters */
+details.ms > summary { box-sizing: border-box; height: 34px; padding-top: 0; padding-bottom: 0; display: flex; align-items: center; font-size: 13px; }

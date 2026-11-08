@@ -26,6 +26,7 @@ export const api = {
   resetChecklist: () => req('POST', '/api/checklists/reset'),
   restoreChecklist: (version) => req('POST', '/api/checklists/restore', { version }),
   checklistsAll: () => req('GET', '/api/checklists/all'),
+  saveResults: (target) => req('POST', '/api/export/save', { target }),
   createChecklist: (name, base) => req('POST', '/api/checklists/new', { name, base }),
   activateChecklist: (id) => req('POST', '/api/checklists/activate', { id }),
   demoArrangement: () => req('GET', '/api/demo/arrangement'),

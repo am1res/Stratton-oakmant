@@ -20,18 +20,21 @@ export async function render(el) {
   const inScope = (c) => (!state.langs || state.langs.includes(c.language)) && (!state.channel || c.channel === state.channel);
 
   el.innerHTML = `
-    <div class="page-head"><h1 class="grow">Диалоги</h1></div>
+    <div class="page-head list-head">
+      <h1 class="grow">Диалоги</h1>
+      <div class="actions">
+        <div class="progress" id="progress" hidden><i style="width:0"></i></div>
+        <span class="muted" id="progress-text" aria-live="polite"></span>
+        <button class="ghost" id="csv">Скачать CSV</button>
+        <button class="ghost" id="save-results" title="Записать результаты в формате организаторов в results/dev или results/prod (потом git add, commit, push)">Сохранить results.json</button>
+        <label class="btn ghost" tabindex="0">Загрузить транскрипт<input type="file" id="upload" accept=".json,application/json" hidden></label>
+        ${scored.length ? '<button class="ghost" id="batch-new" title="Пропустить диалоги, уже оценённые текущей версией чек-листа">Оценить неоценённые</button>' : ''}
+        <button id="batch">${scored.length ? 'Переоценить все' : 'Оценить все'}</button>
+      </div>
+    </div>
     <section class="sheet" style="overflow:hidden">
       <div class="stats">
         <div id="stat-nums" style="display:contents"></div>
-        <div class="actions">
-          <div class="progress" id="progress" hidden><i style="width:0"></i></div>
-          <span class="muted" id="progress-text" aria-live="polite"></span>
-          <button class="ghost" id="csv">Скачать CSV</button>
-          <label class="btn ghost" tabindex="0">Загрузить транскрипт<input type="file" id="upload" accept=".json,application/json" hidden></label>
-          ${scored.length ? '<button class="ghost" id="batch-new" title="Пропустить диалоги, уже оценённые текущей версией чек-листа">Оценить неоценённые</button>' : ''}
-          <button id="batch">${scored.length ? 'Переоценить все' : 'Оценить все'}</button>
-        </div>
       </div>
       <div id="failures"></div>
       <div class="filters">
@@ -156,6 +159,18 @@ export async function render(el) {
   bind('#sort', 'sort');
   bind('#problems', 'onlyProblems', 'checked');
   bind('#unsure', 'onlyUnsure', 'checked');
+  el.querySelector('#save-results').onclick = async (e) => {
+    const t = el.querySelector('#progress-text');
+    e.target.disabled = true;
+    try {
+      const r = await api.saveResults();
+      t.innerHTML = `Сохранено: <b>${esc(r.path)}</b> — ${r.ok} из ${r.total} оценены${r.missing ? `, <span class="error">${r.missing} без оценки</span>` : ''}. Теперь git add, commit, push.`;
+    } catch (err) {
+      t.textContent = `Не сохранено: ${humanError(err)}`;
+    } finally {
+      e.target.disabled = false;
+    }
+  };
   el.querySelector('#csv').onclick = async () => {
     try {
       await exportAllCsv();

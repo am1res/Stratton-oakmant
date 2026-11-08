@@ -10,6 +10,7 @@ import { analyzeCall } from './data/voice.js';
 import { analyzeEmotion, readEmotion } from './data/emotion.js';
 import { evaluateConversation, runCriteria } from './llm/evaluate.js';
 import { computeScore, validateChecklist, normalizeAnswer } from '../shared/scoring.js';
+import { buildSubmission } from './export.js';
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -510,6 +511,37 @@ function modelLabel() {
   }
   return config.llm.model;
 }
+
+// ---------------- results for the organizers (backend/export.js) ----------------
+// Format from the organizers' guide: schema_version 1.0, team_name, model, results[].
+// The file goes to results/dev/results.json (DEV set) or results/prod/results.json (control set),
+// then it has to be committed and pushed.
+async function submission() {
+  const evaluations = (await store.list('evaluations')).filter((e) => conversations.has(e.conversation_id));
+  const local = /localhost|127\.0\.0\.1|0\.0\.0\.0/.test(config.llm.baseUrl);
+  return buildSubmission({
+    conversationIds: [...conversations.keys()],
+    evaluations,
+    teamName: config.teamName,
+    model: { mode: config.llm.mock ? 'mock' : local ? 'local' : 'api', name: modelLabel() },
+  });
+}
+const resultsTarget = (q) => (q === 'dev' || q === 'prod' ? q : config.api.groupId === 'DEV' ? 'dev' : 'prod');
+
+app.get('/api/export', wrap(async (req, res) => {
+  if (req.query.download) res.setHeader('Content-Disposition', `attachment; filename="results_${resultsTarget(req.query.target)}.json"`);
+  res.json(await submission());
+}));
+
+app.post('/api/export/save', wrap(async (req, res) => {
+  const target = resultsTarget(req.body?.target);
+  const out = await submission();
+  const file = path.join(ROOT, 'results', target, 'results.json');
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, JSON.stringify(out, null, 2) + '\n', 'utf-8');
+  const ok = out.results.filter((r) => r.status === 'ok').length;
+  res.json({ path: `results/${target}/results.json`, target, group_id: config.api.groupId, total: out.results.length, ok, missing: out.results.length - ok });
+}));
 
 app.get('/api/meta', (req, res) =>
   res.json({ model: modelLabel(), mode: config.llm.mode, votes: config.llm.votes, group_id: config.api.groupId, price_in: config.llm.priceIn, price_out: config.llm.priceOut }),
