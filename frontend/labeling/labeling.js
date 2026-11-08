@@ -84,15 +84,15 @@ export async function render(el, { id } = {}) {
           .map((m) => `<div class="msg ${esc(m.speaker)}">${m.speaker === 'system' ? `#${m.msg_index} ${esc(m.text)}` : `<div class="who"><b>${esc(SPEAKER[m.speaker] || m.speaker)}</b><span>#${m.msg_index}</span></div>${esc(m.text)}`}</div>`)
           .join('')}</div>
       </section>
-      <form class="sheet label-form" id="form">
+      <form class="sheet label-form" id="form" novalidate>
         ${checklist.criteria
           .map(
-            (c) => `<fieldset class="label-crit">
+            (c) => `<fieldset class="label-crit" data-id="${esc(c.id)}">
               <legend>${esc(c.name)}</legend>
               ${c.yes_rule ? `<p class="muted">${esc(c.yes_rule)}</p>` : ''}
               ${c.na_allowed && c.na_rule ? `<p class="muted">N/A: ${esc(c.na_rule)}</p>` : ''}
               <div class="seg" role="radiogroup" aria-label="${esc(c.name)}">${options(c)
-                .map((o) => `<label class="seg-opt"><input type="radio" name="${esc(c.id)}" value="${esc(o)}" ${prev && String(prev.answers[c.id]) === String(o) ? 'checked' : ''} required><span>${esc(label(c, o))}</span></label>`)
+                .map((o) => `<label class="seg-opt"><input type="radio" name="${esc(c.id)}" value="${esc(o)}" ${prev && String(prev.answers[c.id]) === String(o) ? 'checked' : ''}><span>${esc(label(c, o))}</span></label>`)
                 .join('')}</div>
             </fieldset>`,
           )
@@ -106,6 +106,16 @@ export async function render(el, { id } = {}) {
     e.preventDefault();
     const fd = new FormData(e.target);
     const answers = Object.fromEntries(checklist.criteria.map((c) => [c.id, fd.get(c.id)]));
+    // Say exactly what is missing (hidden radio buttons can't show the browser's own hint).
+    work.querySelectorAll('.label-crit.missing').forEach((f) => f.classList.remove('missing'));
+    const missing = checklist.criteria.filter((c) => !answers[c.id]);
+    if (missing.length) {
+      missing.forEach((c) => work.querySelector(`.label-crit[data-id="${CSS.escape(c.id)}"]`)?.classList.add('missing'));
+      work.querySelector('#msg').textContent = `Не выбран ответ: ${missing.map((c) => c.name).join(', ')}.`;
+      work.querySelector('.label-crit.missing')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    work.querySelector('#msg').textContent = 'Сохраняю…';
     try {
       await api.saveLabel(conv.conversation_id, reviewer, answers, work.querySelector('#note').value);
       const next = todo.find((c) => c.conversation_id !== conv.conversation_id);

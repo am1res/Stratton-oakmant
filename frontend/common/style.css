@@ -415,3 +415,6 @@ table.grid th.num { font-size: 12px; font-weight: 500; color: var(--ink-3); }
 .seg-opt input:focus-visible + span { outline: 2px solid var(--forest-2); outline-offset: -2px; }
 .label-form .row { display: flex; gap: var(--s3); align-items: center; }
 @media (max-width: 1000px) { .label-layout, .label-work { grid-template-columns: 1fr; } }
+.label-crit.missing legend { color: var(--fail-text); }
+.label-crit.missing .seg { box-shadow: 0 0 0 2px var(--fail); }
+.label-form #msg { color: var(--fail-text); }
