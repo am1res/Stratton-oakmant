@@ -1,0 +1,916 @@
+{
+ "_about": "DRAFT reference grades for the 60 DEV chats against checklist cqa-default v1. Written by Claude from the checklist text; NOT official. P4 reviews every entry with a non-empty 'check' list first. Calls are not labelled yet.",
+ "_status": "draft",
+ "labels": {
+  "p1-ru-001": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-ru-002": {
+   "answers": {
+    "c01": "yes",
+    "c02": "yes",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [
+    "c03",
+    "c04"
+   ],
+   "note": "No account data revealed; ID only offered → c03 N/A. Correct next step given → c04 20."
+  },
+  "p1-ru-003": {
+   "answers": {
+    "c01": "yes",
+    "c02": "yes",
+    "c03": "na",
+    "c04": 10,
+    "c05": "yes",
+    "c06": 4,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [
+    "c05",
+    "c06",
+    "c07"
+   ],
+   "note": "Commission question asked twice, never answered. Reply #14 does not match the question."
+  },
+  "p1-ru-004": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [
+    "c02"
+   ],
+   "note": "Operator confirms the need and answers in the same message; c02 could be Yes."
+  },
+  "p1-ru-005": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 15,
+    "c05": "yes",
+    "c06": 4,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [
+    "c04"
+   ],
+   "note": "Vague menu answer #11 forced the client to re-ask; who charges the fee only partly answered."
+  },
+  "p1-ru-006": {
+   "answers": {
+    "c01": "yes",
+    "c02": "yes",
+    "c03": "yes",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": "Clean reference chat."
+  },
+  "p1-ru-007": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 10,
+    "c05": "yes",
+    "c06": 7,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [
+    "c05",
+    "c06",
+    "c07"
+   ],
+   "note": "Second question (when to retry withdrawal) ignored."
+  },
+  "p1-ru-008": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-ru-009": {
+   "answers": {
+    "c01": "yes",
+    "c02": "yes",
+    "c03": "no",
+    "c04": 5,
+    "c05": "no",
+    "c06": 4,
+    "c07": "yes",
+    "c08": "yes"
+   },
+   "check": [
+    "c04",
+    "c07",
+    "c08"
+   ],
+   "note": "Account restriction revealed before ID (#11); told client verification not needed (#13). c08 = confidential_disclosure.",
+   "gross_error_type": "confidential_disclosure"
+  },
+  "p1-ru-010": {
+   "answers": {
+    "c01": "yes",
+    "c02": "yes",
+    "c03": "yes",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-ru-011": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-ru-012": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "na",
+    "c08": "no"
+   },
+   "check": [],
+   "note": "Connection lost #11 → c07 N/A."
+  },
+  "p1-ru-013": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-ru-014": {
+   "answers": {
+    "c01": "no",
+    "c02": "no",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 7,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [
+    "c05",
+    "c06"
+   ],
+   "note": "\"Привет\", no name; re-asked which site although the client already said it."
+  },
+  "p1-ru-015": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-ru-016": {
+   "answers": {
+    "c01": "yes",
+    "c02": "no",
+    "c03": "na",
+    "c04": 15,
+    "c05": "no",
+    "c06": 4,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [
+    "c04"
+   ],
+   "note": "Answered blindly (reinstall app) without asking; \"Ну, тогда сайт.\" dismissive; correct answer only at #13."
+  },
+  "p1-ru-017": {
+   "answers": {
+    "c01": "yes",
+    "c02": "yes",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-ru-018": {
+   "answers": {
+    "c01": "yes",
+    "c02": "no",
+    "c03": "na",
+    "c04": 0,
+    "c05": "no",
+    "c06": 4,
+    "c07": "no",
+    "c08": "no"
+   },
+   "check": [
+    "c06"
+   ],
+   "note": "Unfounded claim, then \"Тогда не знаю\", operator closed chat."
+  },
+  "p1-ru-019": {
+   "answers": {
+    "c01": "yes",
+    "c02": "yes",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-ru-020": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 15,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [
+    "c04"
+   ],
+   "note": "Existing-position question deferred without a concrete next step."
+  },
+  "p1-ru-021": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-ru-022": {
+   "answers": {
+    "c01": "yes",
+    "c02": "no",
+    "c03": "na",
+    "c04": 0,
+    "c05": "no",
+    "c06": 7,
+    "c07": "no",
+    "c08": "yes"
+   },
+   "check": [
+    "c02",
+    "c06"
+   ],
+   "note": "\"Скиньте деньги мне на карту\" → bypass_service. Operator closed chat.",
+   "gross_error_type": "bypass_service"
+  },
+  "p1-ru-023": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "yes"
+   },
+   "check": [
+    "c05"
+   ],
+   "note": "Private paid consultation offer #11 → bypass_service.",
+   "gross_error_type": "bypass_service"
+  },
+  "p1-ru-024": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-ru-025": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": "na",
+    "c05": "yes",
+    "c06": 10,
+    "c07": "na",
+    "c08": "no"
+   },
+   "check": [],
+   "note": "Client left before stating the request → c02/c03/c04/c07 N/A. Best N/A demo."
+  },
+  "p1-ru-026": {
+   "answers": {
+    "c01": "yes",
+    "c02": "no",
+    "c03": "na",
+    "c04": 0,
+    "c05": "no",
+    "c06": 4,
+    "c07": "no",
+    "c08": "no"
+   },
+   "check": [],
+   "note": "Asked \"Чем могу помочь?\" although the request was above; \"Всё есть в приложении\"; operator closed chat."
+  },
+  "p1-ru-027": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-ru-028": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": "Warned about the wait (#9) → c06 10."
+  },
+  "p1-ru-029": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "no",
+    "c06": 7,
+    "c07": "no",
+    "c08": "yes"
+   },
+   "check": [
+    "c06",
+    "c07"
+   ],
+   "note": "\"Вы вообще читать умеете?\" → insult. Bare \"До свидания.\" after the complaint.",
+   "gross_error_type": "insult"
+  },
+  "p1-ru-030": {
+   "answers": {
+    "c01": "yes",
+    "c02": "yes",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-kz-001": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-kz-002": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-kz-003": {
+   "answers": {
+    "c01": "yes",
+    "c02": "yes",
+    "c03": "yes",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-kz-004": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-kz-005": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 4,
+    "c07": "no",
+    "c08": "no"
+   },
+   "check": [
+    "c04"
+   ],
+   "note": "Wrong path first (#9), client re-asked; final \"Жақсы.\" has no farewell."
+  },
+  "p1-kz-006": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-kz-007": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-kz-008": {
+   "answers": {
+    "c01": "no",
+    "c02": "no",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 7,
+    "c07": "no",
+    "c08": "no"
+   },
+   "check": [
+    "c07"
+   ],
+   "note": "\"Сәлем\", no name; re-asked the site; no farewell from the operator."
+  },
+  "p1-kz-009": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-kz-010": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-kz-011": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "na",
+    "c08": "no"
+   },
+   "check": [],
+   "note": "Connection lost → c07 N/A."
+  },
+  "p1-kz-012": {
+   "answers": {
+    "c01": "yes",
+    "c02": "yes",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-kz-013": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "no",
+    "c08": "yes"
+   },
+   "check": [],
+   "note": "Paid private consultation offer → bypass_service. Operator closed chat.",
+   "gross_error_type": "bypass_service"
+  },
+  "p1-kz-014": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 7,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [
+    "c04",
+    "c06"
+   ],
+   "note": "Answers \"Иә\" (yes) and then says the form is in English: contradictory start."
+  },
+  "p1-kz-015": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "no",
+    "c04": 5,
+    "c05": "no",
+    "c06": 7,
+    "c07": "yes",
+    "c08": "yes"
+   },
+   "check": [
+    "c04",
+    "c07",
+    "c08"
+   ],
+   "note": "Restriction revealed without ID; \"Қазір растаудың қажеті жоқ\". c08 = confidential_disclosure.",
+   "gross_error_type": "confidential_disclosure"
+  },
+  "p1-en-001": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-en-002": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-en-003": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-en-004": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-en-005": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-en-006": {
+   "answers": {
+    "c01": "yes",
+    "c02": "yes",
+    "c03": "yes",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-en-007": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 10,
+    "c05": "yes",
+    "c06": 7,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [
+    "c05",
+    "c06",
+    "c07"
+   ],
+   "note": "Retry-timing question ignored."
+  },
+  "p1-en-008": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 15,
+    "c05": "yes",
+    "c06": 7,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [
+    "c06"
+   ],
+   "note": "\"It doesn't answer what's happening with an existing position\" is confusing; no next step."
+  },
+  "p1-en-009": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "na",
+    "c08": "no"
+   },
+   "check": [],
+   "note": "Connection lost → c07 N/A."
+  },
+  "p1-en-010": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-en-011": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-en-012": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [],
+   "note": ""
+  },
+  "p1-en-013": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "na",
+    "c04": 20,
+    "c05": "yes",
+    "c06": 10,
+    "c07": "no",
+    "c08": "yes"
+   },
+   "check": [
+    "c05"
+   ],
+   "note": "Paid private advice offer → bypass_service. Agent closed chat.",
+   "gross_error_type": "bypass_service"
+  },
+  "p1-en-014": {
+   "answers": {
+    "c01": "yes",
+    "c02": "na",
+    "c03": "no",
+    "c04": 5,
+    "c05": "no",
+    "c06": 7,
+    "c07": "no",
+    "c08": "yes"
+   },
+   "check": [
+    "c04",
+    "c06",
+    "c08"
+   ],
+   "note": "Restriction revealed without ID; \"We can skip that\"; bare \"Goodbye.\" to an open question.",
+   "gross_error_type": "confidential_disclosure"
+  },
+  "p1-en-015": {
+   "answers": {
+    "c01": "no",
+    "c02": "no",
+    "c03": "na",
+    "c04": 15,
+    "c05": "yes",
+    "c06": 4,
+    "c07": "yes",
+    "c08": "no"
+   },
+   "check": [
+    "c04",
+    "c07"
+   ],
+   "note": "No greeting or name; wrong first advice; bare \"Bye.\" after it worked."
+  }
+ }
+}

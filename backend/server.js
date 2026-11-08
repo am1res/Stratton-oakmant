@@ -8,6 +8,7 @@ import { loadConversations, normalizeRecord, getSignedAudioUrl, setDemoArrangeme
 import { getAudioFile } from './data/audio.js';
 import { evaluateConversation, runCriteria } from './llm/evaluate.js';
 import { computeScore, validateChecklist, normalizeAnswer } from '../shared/scoring.js';
+import { buildSubmission } from './export.js';
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -394,6 +395,20 @@ app.get('/api/reference', wrap(async (req, res) => {
   } catch {
     res.json({ status: 'none', labels: {} });
   }
+}));
+
+// Results in the organizers' submission format (backend/export.js). ?download=1 → file.
+app.get('/api/export', wrap(async (req, res) => {
+  const ids = [...conversations.keys()];
+  const local = /localhost|127\.0\.0\.1|0\.0\.0\.0/.test(config.llm.baseUrl);
+  const out = buildSubmission({
+    conversationIds: ids,
+    evaluations: (await store.list('evaluations')).filter((e) => conversations.has(e.conversation_id)),
+    teamName: config.teamName,
+    model: { mode: config.llm.mock ? 'mock' : local ? 'local' : 'api', name: config.llm.mock ? 'mock' : config.llm.model },
+  });
+  if (req.query.download) res.setHeader('Content-Disposition', `attachment; filename="cqa_results_${config.api.groupId}.json"`);
+  res.json(out);
 }));
 
 // ---------------- meta + static ----------------

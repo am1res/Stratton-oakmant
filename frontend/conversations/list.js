@@ -14,24 +14,18 @@ export async function render(el) {
   const list = await api.conversations();
   if (!list.length) return renderEmpty(el);
   const scored = list.filter((c) => c.latest_score !== null);
-  const avg = scored.length ? Math.round(scored.reduce((s, c) => s + c.latest_score, 0) / scored.length) : null;
-  const gross = list.filter((c) => c.gross_error).length;
-  const appeals = list.filter((c) => c.has_open_appeal).length;
   const langs = [...new Set(list.map((c) => c.language))];
 
   el.innerHTML = `
     <div class="page-head"><h1 class="grow">Диалоги</h1></div>
     <section class="sheet" style="overflow:hidden">
       <div class="stats">
-        <div class="stat"><b>${list.length}</b><span>диалогов в наборе</span></div>
-        <div class="stat"><b>${scored.length}</b><span>оценено</span></div>
-        <div class="stat"><b>${avg ?? '—'}</b><span>средний балл</span></div>
-        <div class="stat ${gross ? 'alert' : ''}"><b>${gross}</b><span>с грубыми ошибками</span></div>
-        <div class="stat"><b>${appeals}</b><span>с открытой апелляцией</span></div>
+        <div id="stat-nums" style="display:contents"></div>
         <div class="actions">
           <div class="progress" id="progress" hidden><i style="width:0"></i></div>
           <span class="muted" id="progress-text" aria-live="polite"></span>
           <button class="ghost" id="csv">Скачать CSV</button>
+          <a class="btn ghost" id="export-json" href="/api/export?download=1" title="Результаты в формате сдачи организаторам (schema 1.0)">Скачать JSON для сдачи</a>
           <label class="btn ghost" tabindex="0">Загрузить транскрипт<input type="file" id="upload" accept=".json,application/json" hidden></label>
           ${scored.length ? '<button class="ghost" id="batch-new" title="Пропустить диалоги, уже оценённые текущей версией чек-листа">Оценить неоценённые</button>' : ''}
           <button id="batch">${scored.length ? 'Переоценить все' : 'Оценить все'}</button>
@@ -57,6 +51,20 @@ export async function render(el) {
     </section>`;
 
   const rows = el.querySelector('#rows');
+  // Summary numbers follow the filters (language, channel, search, checkboxes).
+  const drawStats = (items) => {
+    const sc = items.filter((c) => c.latest_score !== null);
+    const avg = sc.length ? Math.round(sc.reduce((s, c) => s + c.latest_score, 0) / sc.length) : null;
+    const gross = items.filter((c) => c.gross_error).length;
+    const appeals = items.filter((c) => c.has_open_appeal).length;
+    const filtered = items.length !== list.length;
+    el.querySelector('#stat-nums').innerHTML = `
+        <div class="stat"><b>${filtered ? `${items.length} <small class="muted">из ${list.length}</small>` : list.length}</b><span>${filtered ? 'диалогов под фильтром' : 'диалогов в наборе'}</span></div>
+        <div class="stat"><b>${sc.length}</b><span>оценено</span></div>
+        <div class="stat"><b>${avg ?? '—'}</b><span>средний балл</span></div>
+        <div class="stat ${gross ? 'alert' : ''}"><b>${gross}</b><span>с грубыми ошибками</span></div>
+        <div class="stat"><b>${appeals}</b><span>с открытой апелляцией</span></div>`;
+  };
   const draw = () => {
     let items = list.filter(
       (c) =>
@@ -67,6 +75,7 @@ export async function render(el) {
         (!state.onlyUnsure || c.low_confidence),
     );
     if (state.sort === 'score') items = [...items].sort((a, b) => (a.latest_score ?? 999) - (b.latest_score ?? 999));
+    drawStats(items);
     rows.innerHTML = items.length
       ? items
           .map(

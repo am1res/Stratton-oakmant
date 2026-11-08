@@ -70,9 +70,10 @@ checklist (config) ──► backend/llm/prompt.js  builds the prompt FROM the c
 | Operators page | **Операторы**: per operator dialogs, average score, change early → late dialogs, weakest criterion, gross errors; detail page with a weekly chart and per-criterion change. The data has no operator or chat date, so they are **demo values** (labelled «демо»): for the DEV set they come from `data/demo_operators.json`, arranged into scenarios (Дамир strong, Ержан weak + all gross errors, Айгерим improving, Мирас declining, Алина/Валерия ordinary + calls) by the draft reference grades; other conversations (e.g. the control set) get stable random ones; real `operator_name` / `operator_id` / `date` fields win, calls use their real date. `DEMO_OPERATORS=0` turns it off. Scores are real. | `frontend/operators/`, `backend/data/source.js` |
 | Checklist history | **Чек-лист → История версий**: see every saved version, what differs from the current one, restore any (copied as a new version, history kept). | `editor.js`, `POST /api/checklists/restore` |
 | Exact rounding | Half-up rounding without float surprises (`1.005 → 1.01`). | `shared/scoring.js` |
+| Submission export | **«Скачать JSON для сдачи»** on the list page / `GET /api/export?download=1`: results in the organizers' format (`schema_version` 1.0, `criterion_id` contact…critical, `value` true/false/null/number, `evidence_turns` 1-based counting every line, `final_score`, `critical_flag`). Reviewer decisions on appeals win. `TEAM_NAME` in `.env`. | `backend/export.js` |
 | Bug fixes | (1) First batch on an empty storage: 4 workers saved the default checklist through one temp file at once, and ~3 conversations failed. (2) When a batch finished, the list re-rendered over an opened conversation card. | `storage.js`, `server.js`, `list.js` |
 
-Tests: `npm test` (21 tests; `test/integration.test.js` covers everything above with synthetic data).
+Tests: `npm test` (26 tests; `test/integration.test.js` covers everything above with synthetic data).
 
 ## Team
 

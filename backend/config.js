@@ -7,6 +7,7 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const env = process.env;
 export const config = {
   port: Number(env.PORT || 3000),
+  teamName: env.TEAM_NAME || 'Stratton Oakmont',
   api: {
     base: env.CQA_API_BASE || '',
     groupId: env.CQA_GROUP_ID || 'DEV',
