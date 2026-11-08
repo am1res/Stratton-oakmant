@@ -8,7 +8,7 @@ The score is computed in code from the checklist. Models judge the operator. The
 
 | Piece | Stack |
 |---|---|
-| Web app | Node.js 20, Express 4, static ES modules (no React). Font: Golos Text. |
+| Web app | Node.js 20, Express 4, static ES modules (no React). |
 | Score | `shared/scoring.js`. Same module in the browser and in Node. |
 | Checklist evaluation | Python 3.11+ package `ai_eval/`. Pydantic v2, OpenAI Python SDK, pytest. |
 | Judge transport | OpenAI-compatible Chat Completions. Judge A uses `json_schema`. Judge B and the adjudicator use `prompt_json` (Anthropic’s compatibility endpoint rejects this schema). |
