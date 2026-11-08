@@ -393,3 +393,23 @@ table.grid tr.group-head th { position: static; background: transparent; border-
 table.grid tbody.group-block + tbody.group-block tr.group-head th { border-top: 1px solid var(--line); }
 /* checklist editor: "add criterion" sits under the last criterion */
 .add-crit { border-top: 1px solid var(--line-2); }
+
+/* multi-select dropdown with square checkboxes (language filter) */
+details.ms { position: relative; }
+details.ms > summary { list-style: none; cursor: pointer; min-width: 150px; padding: 8px 32px 8px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); font-size: 14px; position: relative; user-select: none; }
+details.ms > summary::-webkit-details-marker { display: none; }
+details.ms > summary::after { content: ''; position: absolute; right: 12px; top: 50%; width: 6px; height: 6px; border-right: 1.5px solid var(--ink-2); border-bottom: 1.5px solid var(--ink-2); transform: translateY(-70%) rotate(45deg); }
+details.ms[open] > summary { border-color: var(--forest); }
+.ms-panel { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm); box-shadow: 0 6px 20px rgba(0,0,0,.08); padding: 6px 0; }
+.ms-panel label { display: flex; align-items: center; gap: 10px; padding: 7px 12px; font-size: 14px; cursor: pointer; white-space: nowrap; }
+.ms-panel label:hover { background: var(--forest-tint); }
+.ms-panel label.ms-all { border-bottom: 1px solid var(--line-2); margin-bottom: 4px; padding-bottom: 9px; }
+.ms-panel input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--forest); border-radius: 2px; }
+
+/* checklist editor: active-checklist picker, new-checklist panel, bottom action bar */
+.cl-pick select { min-width: 260px; }
+.new-cl { margin-bottom: var(--s4); border-color: var(--forest); }
+.new-cl-row { display: flex; gap: var(--s3); align-items: flex-end; flex-wrap: wrap; }
+.new-cl-row .check { padding-bottom: 9px; }
+.editor-bar { position: sticky; bottom: 0; z-index: 5; display: flex; gap: var(--s2); align-items: center; padding: var(--s3) var(--s5); background: var(--surface); border-top: 1px solid var(--line); border-radius: 0 0 var(--r-md) var(--r-md); box-shadow: 0 -4px 12px rgba(0,0,0,.04); }
+.editor-bar .grow { flex: 1; }

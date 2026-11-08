@@ -189,19 +189,83 @@ async function voiceReport(req, res) {
 }
 
 // ---------------- checklists ----------------
+// Several checklists can exist (e.g. the default one from the PDF and a new set of criteria for
+// another team). Each has its own id and versions; storage/checklists/<id>_v<version>.json.
+// ONE of them is active (storage/settings/active_checklist.json): new evaluations use its latest version.
 let seeding = null; // the default checklist is written once, even if 4 batch workers ask at the same time
+const readDefault = async () => JSON.parse(await fs.readFile(config.paths.defaultChecklist, 'utf-8'));
+async function activeChecklistId() {
+  const saved = await store.get('settings', 'active_checklist');
+  if (saved?.id) return saved.id;
+  return (await readDefault()).id;
+}
+async function versionsOf(id) {
+  return (await store.list('checklists')).filter((c) => c.id === id).sort((a, b) => b.version - a.version);
+}
 async function currentChecklist() {
-  const all = await store.list('checklists');
-  if (all.length) return all.sort((a, b) => b.version - a.version)[0];
+  const id = await activeChecklistId();
+  const versions = await versionsOf(id);
+  if (versions.length) return versions[0];
   seeding ??= (async () => {
-    const def = JSON.parse(await fs.readFile(config.paths.defaultChecklist, 'utf-8'));
+    const def = await readDefault();
+    if (def.id !== id) {
+      // the active id points to a checklist that is gone: fall back to the default one
+      await store.put('settings', 'active_checklist', { id: def.id });
+      const v = await versionsOf(def.id);
+      if (v.length) return v[0];
+    }
     return store.put('checklists', `${def.id}_v${def.version}`, { ...def, saved_at: new Date().toISOString() });
   })().finally(() => (seeding = null));
   return seeding;
 }
 
 app.get('/api/checklists/current', wrap(async (req, res) => res.json(await currentChecklist())));
-app.get('/api/checklists', wrap(async (req, res) => res.json((await store.list('checklists')).sort((a, b) => b.version - a.version))));
+// versions of the ACTIVE checklist (the editor's history)
+app.get('/api/checklists', wrap(async (req, res) => res.json(await versionsOf((await currentChecklist()).id))));
+
+// every checklist (latest version of each) for the selector
+app.get('/api/checklists/all', wrap(async (req, res) => {
+  const active = (await currentChecklist()).id;
+  const latest = new Map();
+  for (const c of await store.list('checklists')) if (!latest.has(c.id) || c.version > latest.get(c.id).version) latest.set(c.id, c);
+  res.json(
+    [...latest.values()]
+      .map((c) => ({ id: c.id, name: c.name, version: c.version, criteria: c.criteria.length, saved_at: c.saved_at, active: c.id === active }))
+      .sort((a, b) => (a.saved_at || '').localeCompare(b.saved_at || '')),
+  );
+}));
+
+// new checklist: a copy of the active one, or a blank one with a single starter criterion. It becomes active.
+app.post('/api/checklists/new', wrap(async (req, res) => {
+  const name = String(req.body?.name || '').trim();
+  if (!name) throw httpError(400, 'name is required');
+  const cur = await currentChecklist();
+  const id = `cl-${Date.now().toString(36)}`;
+  const base =
+    req.body?.base === 'empty'
+      ? {
+          rounding: cur.rounding ?? 2,
+          first_response_threshold_sec: cur.first_response_threshold_sec ?? 180,
+          general_rules: cur.general_rules || [],
+          sections: [{ id: 's1', name: 'Основной раздел' }],
+          criteria: [{ id: 'c01', section: 's1', name: 'Новый критерий', type: 'binary', weight: 100, na_allowed: false, yes_rule: 'Опишите, в каких случаях ставится «Да», а в каких — «Нет».', na_rule: '', decision_steps: [], examples: [] }],
+        }
+      : structuredClone({ rounding: cur.rounding, first_response_threshold_sec: cur.first_response_threshold_sec, general_rules: cur.general_rules, sections: cur.sections, criteria: cur.criteria });
+  const next = { ...base, id, name, version: 1, created_from: req.body?.base === 'empty' ? null : { id: cur.id, version: cur.version }, saved_at: new Date().toISOString() };
+  const errors = validateChecklist(next);
+  if (errors.length) return res.status(400).json({ error: 'invalid checklist', details: errors });
+  await store.put('checklists', `${id}_v1`, next);
+  await store.put('settings', 'active_checklist', { id });
+  res.json(next);
+}));
+
+// choose which checklist new evaluations use
+app.post('/api/checklists/activate', wrap(async (req, res) => {
+  const id = String(req.body?.id || '');
+  if (!(await versionsOf(id)).length) throw httpError(404, `checklist ${id} not found`);
+  await store.put('settings', 'active_checklist', { id });
+  res.json(await currentChecklist());
+}));
 
 app.put('/api/checklists/current', wrap(async (req, res) => {
   const cur = await currentChecklist();
@@ -215,7 +279,7 @@ app.put('/api/checklists/current', wrap(async (req, res) => {
 // NEW version (cur + 1), so evaluations made under every version keep pointing to their snapshot.
 app.post('/api/checklists/restore', wrap(async (req, res) => {
   const wanted = Number(req.body?.version);
-  const all = await store.list('checklists');
+  const all = await versionsOf((await currentChecklist()).id);
   const old = all.find((c) => c.version === wanted);
   if (!old) throw httpError(404, `checklist version ${req.body?.version} not found`);
   const cur = await currentChecklist();
@@ -229,7 +293,8 @@ app.post('/api/checklists/restore', wrap(async (req, res) => {
 app.post('/api/checklists/reset', wrap(async (req, res) => {
   const cur = await currentChecklist();
   const def = JSON.parse(await fs.readFile(config.paths.defaultChecklist, 'utf-8'));
-  const next = { ...def, version: cur.version + 1, saved_at: new Date().toISOString() };
+  // the PDF criteria go into the ACTIVE checklist as its next version (its id and name stay)
+  const next = { ...def, id: cur.id, name: cur.name, version: cur.version + 1, saved_at: new Date().toISOString() };
   res.json(await store.put('checklists', `${next.id}_v${next.version}`, next));
 }));
 
@@ -249,8 +314,8 @@ app.post('/api/evaluate/batch', wrap(async (req, res) => {
   // so everything is evaluated again.
   let skipped = 0;
   if (req.body?.skip_done) {
-    const version = (await currentChecklist()).version;
-    const done = new Set((await store.list('evaluations')).filter((e) => e.checklist_version === version).map((e) => e.conversation_id));
+    const cur = await currentChecklist();
+    const done = new Set((await store.list('evaluations')).filter((e) => e.checklist_id === cur.id && e.checklist_version === cur.version).map((e) => e.conversation_id));
     const before = ids.length;
     ids = ids.filter((id) => !done.has(id));
     skipped = before - ids.length;

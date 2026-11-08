@@ -6,8 +6,7 @@ import { api, esc } from '../common/api.js';
 const TYPES = { binary: 'Да / Нет', scale: 'Шкала', flag: 'Флаг без баллов' };
 
 export async function render(el) {
-  const current = await api.checklist();
-  const versions = await api.checklistVersions();
+  const [current, versions, all] = await Promise.all([api.checklist(), api.checklistVersions(), api.checklistsAll()]);
   let draft = structuredClone(current);
   const open = new Set();
   let dirty = false;
@@ -16,19 +15,36 @@ export async function render(el) {
     <div class="page-head">
       <div class="grow">
         <h1>Чек-лист</h1>
-        <p class="muted">${esc(current.name)}, версия ${current.version}. Всего версий: ${versions.length}.</p>
+        <p class="muted">${esc(current.name)}, версия ${current.version}. Всего версий: ${versions.length}. Новые оценки используют этот чек-лист.</p>
       </div>
-      <span class="muted" id="status" aria-live="polite"></span>
-      <button class="ghost" id="discard" disabled>Отменить изменения</button>
-      <button id="save" disabled>Сохранить как версию ${current.version + 1}</button>
+      <label class="field cl-pick">Активный чек-лист
+        <select id="pick">${all.map((c) => `<option value="${esc(c.id)}" ${c.active ? 'selected' : ''}>${esc(c.name)} · v${c.version} · ${c.criteria} крит.</option>`).join('')}</select>
+      </label>
+      <button id="new-open">+ Новый чек-лист</button>
     </div>
+    <section class="sheet sheet-pad new-cl" id="new-panel" hidden>
+      <h2 style="margin:0 0 12px">Новый чек-лист</h2>
+      <div class="new-cl-row">
+        <label class="field" style="flex:1 1 260px">Название<input id="new-name" placeholder="Например: Звонки, отдел продаж"></label>
+        <label class="check"><input type="radio" name="new-base" value="copy" checked> Копия текущего «${esc(current.name)}»</label>
+        <label class="check"><input type="radio" name="new-base" value="empty"> Пустой (один критерий для начала)</label>
+        <button id="new-create">Создать и сделать активным</button>
+        <button class="ghost" id="new-cancel">Отмена</button>
+      </div>
+      <p class="muted" style="margin:8px 0 0">Старые чек-листы и оценки по ним сохраняются. Переключаться между чек-листами можно в списке «Активный чек-лист».</p>
+    </section>
     <section class="sheet">
       <div class="sheet-pad" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
         <div class="weightbar" id="weights"></div>
       </div>
       <div class="crit-cols" aria-hidden="true"><span>ID</span><span>Критерий</span><span>Тип ответа</span><span>Вес</span><span>N/A</span><span></span></div>
       <div id="crits"></div>
-      <div class="sheet-pad add-crit"><button class="ghost" id="add">+ Добавить критерий</button></div>
+      <div class="editor-bar">
+        <button class="ghost" id="add">+ Добавить критерий</button>
+        <span class="muted grow" id="status" aria-live="polite"></span>
+        <button class="ghost" id="discard" disabled>Отменить изменения</button>
+        <button id="save" disabled>Сохранить как версию ${current.version + 1}</button>
+      </div>
     </section>
     <details class="sheet sheet-pad" style="margin-top:16px" id="history">
       <summary style="cursor:pointer">История версий (${versions.length}) — посмотреть и вернуть любую</summary>
@@ -140,6 +156,44 @@ export async function render(el) {
     fresh?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     fresh?.querySelector('input[data-k="name"]')?.select();
   };
+
+  // ---- several checklists: switch the active one, create a new one ----
+  const pick = el.querySelector('#pick');
+  pick.onchange = async () => {
+    if (dirty && !confirm('Несохранённые изменения пропадут. Переключить чек-лист?')) return (pick.value = current.id);
+    try {
+      await api.activateChecklist(pick.value);
+      dirty = false;
+      await render(el);
+      el.querySelector('#status').innerHTML = '<span class="saved-note">Чек-лист переключён. Новые оценки используют его.</span>';
+    } catch (err) {
+      pick.value = current.id;
+      el.querySelector('#status').innerHTML = `<span class="error">Не переключено. ${esc(err.message)}</span>`;
+    }
+  };
+  const panel = el.querySelector('#new-panel');
+  el.querySelector('#new-open').onclick = () => {
+    panel.hidden = false;
+    el.querySelector('#new-name').focus();
+  };
+  el.querySelector('#new-cancel').onclick = () => (panel.hidden = true);
+  el.querySelector('#new-create').onclick = async (e) => {
+    const name = el.querySelector('#new-name').value.trim();
+    if (!name) return el.querySelector('#new-name').focus();
+    if (dirty && !confirm('Несохранённые изменения в текущем чек-листе пропадут. Продолжить?')) return;
+    e.target.disabled = true;
+    try {
+      const base = el.querySelector('input[name="new-base"]:checked').value;
+      await api.createChecklist(name, base);
+      dirty = false;
+      await render(el);
+      el.querySelector('#status').innerHTML = `<span class="saved-note">Создан чек-лист «${esc(name)}». Он активный: новые оценки используют его.</span>`;
+    } catch (err) {
+      e.target.disabled = false;
+      alertBox(err);
+    }
+  };
+  const alertBox = (err) => (el.querySelector('#status').innerHTML = `<span class="error">Не создано. ${esc(err.message)}</span>`);
 
   el.querySelector('#discard').onclick = () => render(el);
   el.querySelector('#save').onclick = async (e) => {

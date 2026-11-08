@@ -6,7 +6,7 @@ import { currentPath } from '../common/app.js';
 import { exportAllCsv } from '../analytics/dashboard.js';
 import { stripHtml } from '../common/strip.js';
 
-const state = { langs: [], channel: '', onlyProblems: false, onlyUnsure: false, q: '', sort: 'id' };
+const state = { langs: null, channel: '', onlyProblems: false, onlyUnsure: false, q: '', sort: 'id' };
 let activeJob = null; // survives re-renders, so leaving the page doesn't lose batch progress
 let lastFailures = [];
 
@@ -15,9 +15,9 @@ export async function render(el) {
   if (!list.length) return renderEmpty(el);
   const scored = list.filter((c) => c.latest_score !== null);
   const langs = [...new Set(list.map((c) => c.language))];
-  state.langs = state.langs.filter((l) => langs.includes(l));
+  if (state.langs) state.langs = state.langs.filter((l) => langs.includes(l));
   // language and channel filters (also used by the batch buttons: they evaluate what is visible)
-  const inScope = (c) => (!state.langs.length || state.langs.includes(c.language)) && (!state.channel || c.channel === state.channel);
+  const inScope = (c) => (!state.langs || state.langs.includes(c.language)) && (!state.channel || c.channel === state.channel);
 
   el.innerHTML = `
     <div class="page-head"><h1 class="grow">Диалоги</h1></div>
@@ -36,10 +36,13 @@ export async function render(el) {
       <div id="failures"></div>
       <div class="filters">
         <input type="search" id="q" placeholder="Поиск по ID" value="${esc(state.q)}" aria-label="Поиск по ID">
-        <div class="seg" role="group" aria-label="Языки (можно выбрать несколько)" id="langs">
-          <button type="button" data-lang="" aria-pressed="${!state.langs.length}">Все языки</button>
-          ${langs.map((l) => `<button type="button" data-lang="${esc(l)}" aria-pressed="${state.langs.includes(l)}">${esc(l)}</button>`).join('')}
-        </div>
+        <details class="ms" id="langs">
+          <summary aria-label="Языки"><span id="langs-label"></span></summary>
+          <div class="ms-panel" role="group" aria-label="Языки (можно выбрать несколько)">
+            <label class="ms-all"><input type="checkbox" data-lang=""> Все языки</label>
+            ${langs.map((l) => `<label><input type="checkbox" data-lang="${esc(l)}"> ${esc(l)}</label>`).join('')}
+          </div>
+        </details>
         <select id="channel" aria-label="Канал"><option value="">Чаты и звонки</option><option value="agent chat" ${state.channel === 'agent chat' ? 'selected' : ''}>Только чаты</option><option value="voice call" ${state.channel === 'voice call' ? 'selected' : ''}>Только звонки</option></select>
         <label class="check"><input type="checkbox" id="problems" ${state.onlyProblems ? 'checked' : ''}> Только требующие внимания</label>
         <label class="check"><input type="checkbox" id="unsure" ${state.onlyUnsure ? 'checked' : ''}> Нужна проверка</label>
@@ -93,7 +96,7 @@ export async function render(el) {
           .join('')
       : `<tr><td colspan="5" class="empty">Нет диалогов под эти фильтры. <button class="link" id="reset-filters">Сбросить фильтры</button></td></tr>`;
     rows.querySelector('#reset-filters')?.addEventListener('click', () => {
-      Object.assign(state, { langs: [], channel: '', onlyProblems: false, onlyUnsure: false, q: '' });
+      Object.assign(state, { langs: null, channel: '', onlyProblems: false, onlyUnsure: false, q: '' });
       render(el);
     });
   };
@@ -113,17 +116,30 @@ export async function render(el) {
       draw();
     });
   bind('#q', 'q');
-  // languages: several can be on at once; "Все языки" clears the choice
-  el.querySelector('#langs').addEventListener('click', (e) => {
-    const b = e.target.closest('button[data-lang]');
-    if (!b) return;
-    const l = b.dataset.lang;
-    if (!l) state.langs = [];
-    else state.langs = state.langs.includes(l) ? state.langs.filter((x) => x !== l) : [...state.langs, l];
-    if (state.langs.length === langs.length) state.langs = []; // all picked = no filter
-    el.querySelectorAll('#langs button').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.lang ? state.langs.includes(x.dataset.lang) : !state.langs.length)));
+  // languages: a dropdown with checkboxes. "Все языки" ticks / unticks every language;
+  // when every language is ticked, "Все языки" is ticked too (state.langs = null = no filter).
+  const msBox = el.querySelector('#langs');
+  const syncLangs = () => {
+    const on = (l) => !state.langs || state.langs.includes(l);
+    msBox.querySelectorAll('input[data-lang]').forEach((i) => (i.checked = i.dataset.lang ? on(i.dataset.lang) : !state.langs));
+    el.querySelector('#langs-label').textContent = !state.langs ? 'Все языки' : state.langs.length ? state.langs.join(', ') : 'Язык не выбран';
+  };
+  msBox.addEventListener('change', (e) => {
+    const l = e.target.dataset?.lang;
+    if (l === undefined) return;
+    if (!l) state.langs = e.target.checked ? null : [];
+    else {
+      const cur = state.langs ?? [...langs];
+      state.langs = e.target.checked ? [...new Set([...cur, l])] : cur.filter((x) => x !== l);
+      if (state.langs.length === langs.length) state.langs = null;
+    }
+    syncLangs();
     draw();
   });
+  document.addEventListener('click', (e) => {
+    if (msBox.open && !msBox.contains(e.target)) msBox.open = false;
+  });
+  syncLangs();
   bind('#channel', 'channel');
   bind('#sort', 'sort');
   bind('#problems', 'onlyProblems', 'checked');
